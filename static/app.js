@@ -431,18 +431,31 @@
   }
 
   async function loadLeagueOverview() {
-    try {
-      var r = await fetch("/api/league-defense-last-10");
-      var data = await r.json();
-      if (data.teams && data.teams.length > 0) {
-        renderLeagueCharts(data);
-      } else {
-        var loadingEl = document.getElementById("league-loading");
+    var loadingEl = document.getElementById("league-loading");
+    var maxRetries = 3;
+    var retryDelayMs = 4000;
+    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (loadingEl && attempt > 1) loadingEl.textContent = "Retrying… (attempt " + attempt + " of " + maxRetries + ")";
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function () { controller.abort(); }, 90000);
+        var r = await fetch("/api/league-defense-last-10", { signal: controller.signal });
+        clearTimeout(timeoutId);
+        var data = await r.json();
+        if (data.teams && data.teams.length > 0) {
+          renderLeagueCharts(data);
+          return;
+        }
         if (loadingEl) loadingEl.textContent = "No league data available.";
+        return;
+      } catch (e) {
+        if (attempt < maxRetries && loadingEl) {
+          loadingEl.textContent = "First load can take a minute. Retrying in a few seconds…";
+          await new Promise(function (resolve) { setTimeout(resolve, retryDelayMs); });
+        } else {
+          if (loadingEl) loadingEl.textContent = "Could not load league data. The app may still be waking up — try refreshing in 30 seconds.";
+        }
       }
-    } catch (e) {
-      var loadingEl = document.getElementById("league-loading");
-      if (loadingEl) loadingEl.textContent = "Could not load league data.";
     }
   }
 
