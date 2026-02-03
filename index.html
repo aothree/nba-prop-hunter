@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NBA Prop Hunter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="page-top">
+    <div class="container page-top-inner">
+      <header>
+        <h1>NBA Prop Hunter</h1>
+      </header>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="league-overview" class="league-overview">
+      <div class="league-overview-header">
+        <h2 class="league-overview-title">OVERS</h2>
+        <p class="league-overview-subtitle">Teams allowing the most (worst defense) — target opponent props to go OVER</p>
+      </div>
+      <div id="league-charts" class="league-charts league-charts-overs">
+        <div class="league-chart-wrap">
+          <h3>Points allowed</h3>
+          <div id="chart-ppg" class="league-chart"></div>
+        </div>
+        <div class="league-chart-wrap">
+          <h3>Rebounds allowed</h3>
+          <div id="chart-rpg" class="league-chart"></div>
+        </div>
+        <div class="league-chart-wrap">
+          <h3>Assists allowed</h3>
+          <div id="chart-apg" class="league-chart"></div>
+        </div>
+      </div>
+      <p class="league-overview-loading" id="league-loading">Loading league data…</p>
+      <div id="overs-summary" class="table-summary-section hidden"></div>
+    </div>
+
+    <div id="league-overview-unders" class="league-overview">
+      <div class="league-overview-header">
+        <h2 class="league-overview-title">UNDERS</h2>
+        <p class="league-overview-subtitle">Teams allowing the least (best defense) — target player props to go UNDER vs these teams</p>
+      </div>
+      <div id="league-charts-unders" class="league-charts league-charts-unders">
+        <div class="league-chart-wrap">
+          <h3>Points allowed</h3>
+          <div id="chart-ppg-under" class="league-chart"></div>
+        </div>
+        <div class="league-chart-wrap">
+          <h3>Rebounds allowed</h3>
+          <div id="chart-rpg-under" class="league-chart"></div>
+        </div>
+        <div class="league-chart-wrap">
+          <h3>Assists allowed</h3>
+          <div id="chart-apg-under" class="league-chart"></div>
+        </div>
+      </div>
+      <p class="league-overview-loading" id="league-loading-unders">Loading league data…</p>
+      <div id="unders-summary" class="table-summary-section hidden"></div>
+    </div>
+
+    <div id="full-heatmap-wrap" class="full-heatmap-wrap hidden">
+      <h2 class="full-heatmap-title">ALL DATA</h2>
+      <p class="full-heatmap-subtitle">Green = more vs league, red = less</p>
+      <div id="full-heatmap-table" class="full-heatmap-table"></div>
+    </div>
+
+    <div id="results" class="hidden">
+      <div id="loading-msg" class="loading hidden">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <p class="loading-text"></p>
+      </div>
+      <div id="results-content">
+        <button type="button" id="btn-back" class="btn-back">← Back to league view</button>
+        <h2 id="team-heading" class="team-heading-with-logo"></h2>
+        <div id="summary" class="summary"></div>
+        <div id="games" class="games"></div>
+      </div>
+    </div>
+
+    <section class="drill-down-section">
+      <p class="drill-down-lead">Select a team to drill further down</p>
+      <div class="team-select-wrap">
+        <label for="team-select">Team</label>
+        <select id="team-select" aria-label="Select NBA team">
+          <option value="">Loading…</option>
+        </select>
+        <button type="button" id="btn-go">View defense</button>
+      </div>
+    </section>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

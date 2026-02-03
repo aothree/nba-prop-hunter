@@ -1,0 +1,8 @@
+# Render blueprint — use this when connecting the repo for the first time.
+# Or set these in the Render dashboard: Build = pip install -r requirements.txt, Start = gunicorn -b 0.0.0.0:$PORT server:app
+services:
+  - type: web
+    name: nba-prop-hunter
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -b 0.0.0.0:$PORT server:app
