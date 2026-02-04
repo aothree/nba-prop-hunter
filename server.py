@@ -90,9 +90,11 @@ def get_league_averages():
     if _league_avg_cache is not None and (now - _league_avg_cache_time) < CACHE_SECONDS:
         return _league_avg_cache
     try:
-        ld = LeagueDashTeamStats(season=SEASON, timeout=60, headers=NBA_HEADERS)
+        # Use 35s timeout so we fail before gunicorn worker timeout (180s) and can still run LeagueGameLog
+        ld = LeagueDashTeamStats(season=SEASON, timeout=35, headers=NBA_HEADERS)
         df = ld.get_data_frames()[0]
-    except Exception:
+    except Exception as e:
+        print("[league-avg] LeagueDashTeamStats failed:", e)
         return _league_avg_cache if _league_avg_cache is not None else {}
     if df is None or df.empty:
         return _league_avg_cache if _league_avg_cache is not None else {}
@@ -781,7 +783,12 @@ def get_league_defense_last_10():
     if _league_defense_cache is not None and (now - _league_defense_cache_time) < CACHE_SECONDS:
         return _league_defense_cache
 
-    league_avg = get_league_averages()
+    # League averages optional: if slow/fails we still try LeagueGameLog with default 0
+    try:
+        league_avg = get_league_averages()
+    except Exception as e:
+        print("[league-defense] get_league_averages failed:", e)
+        league_avg = {}
     lg_ppg = league_avg.get("ppg") or 0
     lg_rpg = league_avg.get("rpg") or 0
     lg_apg = league_avg.get("apg") or 0
@@ -791,7 +798,8 @@ def get_league_defense_last_10():
     for attempt in range(3):
         try:
             time.sleep(NBA_DELAY)
-            lgl = LeagueGameLog(season=SEASON, timeout=90, headers=NBA_HEADERS)
+            # 60s per attempt so total fits under gunicorn --timeout 180
+            lgl = LeagueGameLog(season=SEASON, timeout=60, headers=NBA_HEADERS)
             df = lgl.get_data_frames()[0]
             if df is not None and not df.empty:
                 break

@@ -1,8 +1,9 @@
 # Render blueprint — use this when connecting the repo for the first time.
-# Or set these in the Render dashboard: Build = pip install -r requirements.txt, Start = gunicorn -b 0.0.0.0:$PORT server:app
+# Or set these in the Render dashboard: Build = pip install -r requirements.txt, Start = gunicorn -b 0.0.0.0:$PORT server:app --timeout 180
 services:
   - type: web
     name: nba-prop-hunter
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -b 0.0.0.0:$PORT server:app
+    # Timeout 180s so /api/league-defense-last-10 can finish (NBA API can be slow from Render)
+    startCommand: gunicorn -b 0.0.0.0:$PORT server:app --timeout 180
