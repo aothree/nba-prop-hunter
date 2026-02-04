@@ -1,14 +1,15 @@
-/* NBA Defense Last 10 — clean, readable UI */
+/* NBA Defense Last 10 — clean, light, datagolf-style */
 :root {
-  --bg: #0f1419;
-  --card: #1a2332;
-  --surface: #243447;
-  --text: #e7e9ea;
-  --text-muted: #8b98a5;
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --surface: #eef0f2;
+  --text: #1a1a1a;
+  --text-muted: #5c6b7a;
   --accent: #1d9bf0;
-  --positive: #00ba7c;
-  --negative: #f4212e;
-  --border: #38444d;
+  /* Higher-contrast, colorblind-friendly: lighter green, distinct red (luminance + hue) */
+  --positive: #34d399;
+  --negative: #dc2626;
+  --border: #dde1e6;
   --radius: 12px;
   --font: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
 }
@@ -26,63 +27,405 @@ body {
 
 .hidden { display: none; }
 
-/* Top section: basketball art with title/subtitle centered */
-.page-top {
-  position: relative;
+/* Slim top bar — datagolf-style: minimal height, title right */
+.site-header {
+  background: #e2e5ea;
+  border-bottom: 1px solid var(--border);
+  padding: 0.4rem 0;
+}
+.site-header-inner {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
-  min-height: 200px;
-  padding: 2rem 1.5rem;
-  background: #1a1612
-    url("/static/hero-basketball.png")
-    center center / cover no-repeat;
-  overflow: hidden;
 }
-.page-top::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0,0,0,0.4) 0%,
-    rgba(0,0,0,0.25) 50%,
-    rgba(0,0,0,0.5) 100%
-  );
-  pointer-events: none;
-}
-.page-top-inner {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  max-width: 100%;
-}
-.page-top header { margin-bottom: 0; }
-.page-top h1 {
-  font-family: "Bebas Neue", sans-serif;
-  font-size: clamp(2.5rem, 8vw, 4rem);
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  color: #fff;
-  text-shadow: 0 2px 12px rgba(0,0,0,0.7);
+.site-title {
+  font-family: "Outfit", "Segoe UI", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
   margin: 0;
-  line-height: 1.1;
+  line-height: 1.2;
+}
+.site-title:hover {
+  color: var(--text);
 }
 
 .container {
-  max-width: 900px;
+  max-width: min(1400px, 96vw);
   margin: 0 auto;
   padding: 2rem 1.5rem;
 }
 
-header { text-align: center; margin-bottom: 2rem; }
+/* Tab navigation — centered buttons */
+.tab-nav {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.tab-btn {
+  font-family: var(--font);
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.5rem 1.1rem;
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.tab-btn:hover {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+.tab-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.tab-btn.active:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  filter: brightness(1.05);
+}
+.tab-panel {
+  display: none;
+}
+.tab-panel.active {
+  display: block;
+}
 
-h1 {
-  font-size: 1.75rem;
+/* Players tab: search + profile — single tight row (datagolf-style) */
+.player-profile-section {
+  background: #e2e5ea;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.player-search-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.player-header-left,
+.player-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+.player-header-left.hidden,
+.player-header-right.hidden {
+  display: none !important;
+}
+.player-search-wrap {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0;
+  margin-bottom: 0;
+  justify-content: center;
+}
+.player-profile-section .player-search-wrap {
+  margin-bottom: 0;
+}
+.player-search-wrap label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.player-search-wrap input {
+  font-family: var(--font);
+  font-size: 1rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-width: 260px;
+}
+.player-search-wrap input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Player search: input + custom dropdown (positioned below input) */
+.player-search-input-wrap {
+  position: relative;
+  display: inline-block;
+}
+.player-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+}
+.player-dropdown[hidden] {
+  display: none !important;
+}
+.player-dropdown-item {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.player-dropdown-item:last-child {
+  border-bottom: none;
+}
+.player-dropdown-item:hover,
+.player-dropdown-item:focus {
+  background: var(--accent);
+  color: var(--bg);
+  outline: none;
+}
+
+/* Player stat cards — 2x2 grid, tight spacing */
+.player-stat-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+@media (min-width: 700px) {
+  .player-stat-cards {
+    gap: 1.25rem;
+  }
+}
+.player-stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+.player-stat-card .stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+.player-stat-card .stat-value {
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+  font-size: 2rem;
   font-weight: 700;
-  margin: 0 0 0.25rem 0;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
   letter-spacing: -0.02em;
+}
+.player-stat-card .stat-unit {
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 0.2rem;
+}
+/* Chart: track + bar cells (value on bar) + date labels on x-axis */
+.player-chart-wrap {
+  margin-top: auto;
+  min-height: 0;
+}
+.player-chart-track {
+  height: 80px;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  margin-bottom: 0.25rem;
+}
+.player-chart-bar-cell {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+.player-chart-bar-value {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.player-chart-bar {
+  width: 100%;
+  min-height: 4px;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.9;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+.player-chart-bar:hover {
+  opacity: 1;
+}
+
+/* Bar chart hover tooltip (date, opp, value) */
+.player-chart-tooltip {
+  position: fixed;
+  z-index: 1000;
+  padding: 0.5rem 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 0.85rem;
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.player-chart-tooltip[hidden] {
+  display: none !important;
+}
+.player-chart-tooltip .player-chart-tooltip-row {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.player-chart-tooltip .player-chart-tooltip-row:last-child {
+  margin-bottom: 0;
+}
+.player-chart-tooltip strong {
+  margin-right: 0.35rem;
+  color: var(--text-muted);
+}
+
+.player-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 1px;
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-height: 2.8rem;
+  align-items: flex-end;
+}
+.player-chart-dot {
+  flex: 1;
+  text-align: left;
+  min-width: 0;
+  transform: rotate(-45deg);
+  transform-origin: top left;
+  white-space: nowrap;
+  padding-left: 2px;
+}
+
+/* Player last 10 games table */
+.player-games-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.player-games-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.player-games-table th,
+.player-games-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.player-games-table th {
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.7rem;
+  background: var(--surface);
+}
+/* MIN (1st) and PTS, REB, AST (4th–6th) right-aligned */
+.player-games-table th:nth-child(1),
+.player-games-table td:nth-child(1),
+.player-games-table th:nth-child(n+4),
+.player-games-table td:nth-child(n+4) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.player-games-table tbody tr:hover {
+  background: var(--surface);
+}
+/* Player page: photo left, search center, logo right — single row */
+.player-header-left.hidden {
+  display: none !important;
+}
+.player-photo {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+@media (min-width: 520px) {
+  .player-photo {
+    width: 96px;
+    height: 96px;
+  }
+}
+.player-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+@media (min-width: 520px) {
+  .player-name { font-size: 1.2rem; }
+}
+.player-team-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+@media (min-width: 520px) {
+  .player-team-logo {
+    width: 64px;
+    height: 64px;
+  }
+}
+.player-table-header {
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+.player-table-header .league-overview-title {
+  margin-bottom: 0;
+}
+.player-heading {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: var(--text);
 }
 
 .subtitle { color: var(--text-muted); font-size: 0.95rem; }
@@ -142,14 +485,129 @@ h1 {
   margin: 0;
   text-align: center;
 }
-.league-charts {
+/* Three stat sections: each column = chart + table, bordered */
+.stat-sections {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: 1rem;
+  margin-top: 0.5rem;
 }
 @media (min-width: 700px) {
-  .league-charts { grid-template-columns: repeat(3, 1fr); }
+  .stat-sections { grid-template-columns: repeat(3, 1fr); }
 }
+.stat-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.table-summary-subsection {
+  margin: 0;
+  padding: 0.5rem 0;
+  border-radius: 8px;
+  background: #e5e7eb;
+  color: #1a1a1a;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  min-height: 0;
+  flex: 0 0 auto;
+}
+.table-summary-subsection .summary-subtable-wrap {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #b8bcc4;
+  border-radius: 6px;
+  background: #f8f9fa;
+}
+.table-summary-subsection .summary-subtable-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+  color: #2d3748;
+  text-align: center;
+}
+.table-summary-subsection .summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  table-layout: auto;
+  border: 1px solid #c5c9cf;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.table-summary-subsection .summary-table th,
+.table-summary-subsection .summary-table td {
+  padding: 0.2rem 0.35rem;
+  vertical-align: middle;
+  border: 1px solid #c5c9cf;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.table-summary-subsection .summary-table th {
+  font-weight: 600;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.6rem;
+  background: #d1d5db;
+}
+.table-summary-subsection .summary-table td:first-of-type,
+.table-summary-subsection .summary-table td:nth-of-type(2) {
+  width: 1%;
+  padding-right: 0.2rem;
+}
+.table-summary-subsection .summary-table td:first-of-type .summary-table-logo {
+  width: 36px;
+  height: 36px;
+  display: block;
+  margin-left: 0;
+  margin-right: auto;
+}
+.table-summary-subsection .summary-table td:nth-of-type(2) .summary-table-logo {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+.table-summary-subsection .summary-table td:nth-of-type(3) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.table-summary-subsection .summary-table .stat-num {
+  font-size: 0.9em;
+  font-style: italic;
+  font-weight: 700;
+}
+.table-summary-subsection .summary-table td:last-of-type {
+  text-align: left;
+  white-space: nowrap;
+  overflow-x: auto;
+  min-width: 4rem;
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+  color: #1a1a1a;
+}
+.table-summary-subsection .summary-table .last-10-cell { color: inherit; }
+.table-summary-subsection .summary-table-logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+.player-name-link {
+  cursor: pointer;
+  color: var(--accent);
+  text-decoration: none;
+}
+.player-name-link:hover {
+  text-decoration: underline;
+}
+
 .league-chart-wrap h3 {
   font-size: 0.9rem;
   font-weight: 600;
@@ -220,6 +678,19 @@ h1 {
   font-size: 0.9rem;
   margin: 0.5rem 0 0 0;
 }
+.player-loading-cancel {
+  margin-left: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.player-loading-cancel:hover {
+  color: var(--text);
+}
 
 /* Summary section below each table — grey background, centered, bordered, compact */
 .table-summary-section {
@@ -244,7 +715,7 @@ h1 {
   color: #374151;
   text-align: center;
 }
-.table-summary-section .summary-content { max-width: 640px; margin: 0 auto; text-align: left; }
+.table-summary-section .summary-content { max-width: 100%; margin: 0 auto; text-align: left; }
 .table-summary-section .summary-table {
   width: 100%;
   border-collapse: collapse;
@@ -275,6 +746,14 @@ h1 {
 }
 .table-summary-section .summary-table td:first-of-type,
 .table-summary-section .summary-table td:nth-of-type(2) { width: 1%; padding-right: 0.35rem; }
+/* TARGET column: larger logos so it’s clear these are the teams to target */
+.table-summary-section .summary-table td:first-of-type .summary-table-logo {
+  width: 52px;
+  height: 52px;
+  display: block;
+  margin-left: 0;
+  margin-right: auto;
+}
 .table-summary-section .summary-table td:nth-of-type(2) .summary-table-logo { display: block; margin-left: auto; margin-right: auto; }
 .table-summary-section .summary-table td:nth-of-type(3) { white-space: nowrap; }
 /* All season-avg numbers in summary table: bold + italic (works for both rowspan and non-rowspan rows) */
@@ -290,6 +769,7 @@ h1 {
   color: #1a1a1a;
 }
 .table-summary-section .summary-table .last-10-cell { color: inherit; }
+/* Next opp and other logos: smaller */
 .table-summary-section .summary-table-logo {
   width: 24px;
   height: 24px;
@@ -313,20 +793,12 @@ h1 {
   text-align: center;
 }
 
-/* Full 30-team heatmap table — full width, dense; section uses same dark card as OVERS/UNDERS */
+/* Full 30-team heatmap — same shape as OVERS/UNDERS (league-overview) */
 .full-heatmap-wrap {
-  margin-top: 0.75rem;
-  margin-left: -1.5rem;
-  margin-right: -1.5rem;
-  margin-bottom: -1.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0 0 var(--radius) var(--radius);
-  background: var(--card);
-  border: 1px solid var(--border);
+  margin-bottom: 2rem;
 }
-.full-heatmap-title { font-size: 1.25rem; margin: 0 0 0.15rem 0; color: var(--text); font-weight: 600; text-align: center; }
-.full-heatmap-subtitle { font-size: 0.7rem; color: var(--text-muted); margin: 0 0 0.35rem 0; text-align: center; }
 .full-heatmap-table {
+  margin-top: 0.5rem;
   overflow-x: auto;
   border: 1px solid #9ca3af;
   border-radius: 6px;

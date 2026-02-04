@@ -597,6 +597,176 @@ def get_players_last_10(player_ids, stat="pts"):
     return out
 
 
+_player_list_cache = None
+_player_list_cache_time = 0
+
+
+def get_player_list():
+    """Return list of players for the current season: [{ "id": str, "full_name": str }]. Cached 5 min."""
+    global _player_list_cache, _player_list_cache_time
+    now = time.time()
+    if _player_list_cache is not None and (now - _player_list_cache_time) < CACHE_SECONDS:
+        return _player_list_cache
+    try:
+        time.sleep(NBA_DELAY)
+        ld = LeagueDashPlayerStats(season=SEASON, timeout=60, headers=NBA_HEADERS)
+        df = ld.get_data_frames()[0]
+    except Exception as e:
+        print("[player-list] LeagueDashPlayerStats failed:", e)
+        return _player_list_cache if _player_list_cache is not None else []
+    if df is None or df.empty:
+        return _player_list_cache if _player_list_cache is not None else []
+    df = _normalize_cols(df)
+    name_col = next((c for c in df.columns if "PLAYER" in str(c) and "NAME" in str(c)), None)
+    if not name_col:
+        first_col = next((c for c in df.columns if "FIRST" in str(c)), None)
+        last_col = next((c for c in df.columns if "LAST" in str(c) or "FAMILY" in str(c)), None)
+        if first_col and last_col:
+            df["_NAME"] = (df[first_col].astype(str) + " " + df[last_col].astype(str)).str.strip()
+            name_col = "_NAME"
+    pid_col = next((c for c in df.columns if "PLAYER" in str(c) and "ID" in str(c)), None)
+    if not name_col or not pid_col:
+        return _player_list_cache if _player_list_cache is not None else []
+    out = []
+    seen = set()
+    for _, row in df.iterrows():
+        pid = row.get(pid_col)
+        if pd.isna(pid):
+            continue
+        try:
+            pid_str = str(int(pid))
+        except (ValueError, TypeError):
+            continue
+        if pid_str in seen:
+            continue
+        seen.add(pid_str)
+        name = row.get(name_col)
+        if pd.isna(name) or not str(name).strip():
+            continue
+        out.append({"id": pid_str, "full_name": str(name).strip()})
+    out.sort(key=lambda x: x["full_name"].lower())
+    _player_list_cache = out
+    _player_list_cache_time = now
+    return out
+
+
+def get_player_last_10_full(player_id: str):
+    """
+    For a single player, return last 20 games with PTS, REB, AST, MIN.
+    Returns: { player_id, player_name, team_abbreviation, summary, games }.
+    """
+    try:
+        pid = int(player_id)
+    except (ValueError, TypeError):
+        return None
+    players = get_player_list()
+    player_name = next((p["full_name"] for p in players if p["id"] == player_id), None)
+    if not player_name:
+        player_name = "Unknown"
+    try:
+        time.sleep(NBA_DELAY)
+        pgl = PlayerGameLog(player_id=pid, season=SEASON, timeout=30, headers=NBA_HEADERS)
+        df = pgl.get_data_frames()[0]
+    except Exception as e:
+        print("[player-last-20-full] PlayerGameLog failed for %s: %s" % (player_id, e))
+        return {"player_id": player_id, "player_name": player_name, "team_abbreviation": None, "summary": {}, "games": [], "error": str(e)}
+    if df is None or df.empty:
+        return {"player_id": player_id, "player_name": player_name, "team_abbreviation": None, "summary": {}, "games": []}
+    df = _normalize_cols(df)
+    date_col = "GAME_DATE" if "GAME_DATE" in df.columns else "GAME_DATE_EST" if "GAME_DATE_EST" in df.columns else None
+    if date_col:
+        df["_dt"] = pd.to_datetime(df[date_col], errors="coerce")
+        df = df.dropna(subset=["_dt"]).sort_values("_dt", ascending=False).head(20)
+    else:
+        df = df.head(20)
+    team_abbreviation = None
+    team_abbr_col = next((c for c in df.columns if "TEAM" in str(c) and "ABBREV" in str(c)), None)
+    if team_abbr_col and not df.empty:
+        val = df.iloc[0].get(team_abbr_col)
+        if pd.notna(val) and str(val).strip():
+            team_abbreviation = str(val).strip()
+    if not team_abbreviation:
+        team_id_col = next((c for c in df.columns if "TEAM" in str(c) and "ID" in str(c)), None)
+        if team_id_col and not df.empty:
+            first_team_id = df.iloc[0].get(team_id_col)
+            if pd.notna(first_team_id):
+                try:
+                    tid = int(first_team_id)
+                    team_list = teams.get_teams()
+                    for t in team_list:
+                        if t["id"] == tid:
+                            team_abbreviation = t["abbreviation"]
+                            break
+                except (ValueError, TypeError):
+                    pass
+    if not team_abbreviation and not df.empty:
+        matchup = str(df.iloc[0].get("MATCHUP", "") or "")
+        if " vs. " in matchup:
+            team_abbreviation = matchup.split(" vs. ")[0].strip()[:3]
+        elif " @ " in matchup:
+            team_abbreviation = matchup.split(" @ ")[0].strip()[:3]
+    games_list = []
+    pts_sum = reb_sum = ast_sum = min_sum = 0.0
+    min_count = 0
+    for _, row in df.iterrows():
+        date_val = row.get(date_col) if date_col else row.get("GAME_DATE", "")
+        if hasattr(date_val, "strftime"):
+            date_str = date_val.strftime("%b %d, %Y")
+        else:
+            date_str = str(date_val) if date_val else ""
+        matchup = str(row.get("MATCHUP", "") or "")
+        pts = int(pd.to_numeric(row.get("PTS", 0), errors="coerce") or 0)
+        reb = int(pd.to_numeric(row.get("REB", 0), errors="coerce") or 0)
+        ast = int(pd.to_numeric(row.get("AST", 0), errors="coerce") or 0)
+        min_raw = row.get("MIN")
+        if pd.isna(min_raw) or min_raw is None or str(min_raw).strip() == "":
+            min_val = None
+        else:
+            min_s = str(min_raw).strip()
+            if ":" in min_s:
+                parts = min_s.split(":")
+                try:
+                    min_val = int(parts[0]) + int(parts[1]) / 60.0 if len(parts) >= 2 else int(parts[0])
+                except (ValueError, TypeError):
+                    min_val = None
+            else:
+                try:
+                    min_val = float(min_s)
+                except (ValueError, TypeError):
+                    min_val = None
+        if min_val is not None:
+            min_sum += min_val
+            min_count += 1
+        pts_sum += pts
+        reb_sum += reb
+        ast_sum += ast
+        games_list.append({
+            "date": date_str,
+            "matchup": matchup,
+            "pts": pts,
+            "reb": reb,
+            "ast": ast,
+            "min": round(min_val, 1) if min_val is not None else None,
+            "usg_pct": None,
+        })
+    n = len(games_list)
+    summary = {}
+    if n:
+        summary = {
+            "ppg_avg": round(pts_sum / n, 1),
+            "rpg_avg": round(reb_sum / n, 1),
+            "apg_avg": round(ast_sum / n, 1),
+            "min_avg": round(min_sum / min_count, 1) if min_count else None,
+        }
+    return {
+        "player_id": player_id,
+        "player_name": player_name,
+        "team_abbreviation": team_abbreviation,
+        "summary": summary,
+        "games": games_list,
+    }
+
+
 _league_defense_cache = None
 _league_defense_cache_time = 0
 
@@ -746,6 +916,36 @@ def index():
 @app.route("/api/teams")
 def api_teams():
     return jsonify(get_team_list())
+
+
+@app.route("/api/players")
+def api_players():
+    try:
+        return jsonify(get_player_list())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/player/<player_id>/last-10")
+def api_player_last_10(player_id):
+    try:
+        data = get_player_last_10_full(player_id)
+        if data is None:
+            return jsonify({"error": "Player not found"}), 404
+        return jsonify(data)
+    except ConnectionResetError as e:
+        print("[player-last-10] Connection reset:", e)
+        return jsonify({"error": "Connection reset by NBA API. Wait a few seconds and try again."}), 503
+    except (ConnectionError, OSError) as e:
+        errno = getattr(e, "errno", None)
+        if errno == 10054 or "10054" in str(e):
+            print("[player-last-10] Connection forcibly closed:", e)
+            return jsonify({"error": "Connection closed by remote host. Wait a few seconds and try again."}), 503
+        print("[player-last-10] Connection error:", e)
+        return jsonify({"error": "Network error. Try again in a moment."}), 503
+    except Exception as e:
+        print("[player-last-10] Error:", e)
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/league-defense-last-10")

@@ -8,6 +8,427 @@
   const summaryEl = document.getElementById("summary");
   const gamesEl = document.getElementById("games");
 
+  var tabTeams = document.getElementById("tab-teams");
+  var tabPlayers = document.getElementById("tab-players");
+  var tabBtns = document.querySelectorAll(".tab-btn");
+  var playerSearchEl = document.getElementById("player-search");
+  var btnPlayerGo = document.getElementById("btn-player-go");
+  var playerLoadingEl = document.getElementById("player-loading");
+  var playerContentEl = document.getElementById("player-content");
+  var playerHeadingEl = document.getElementById("player-heading");
+  var playerStatCardsEl = document.getElementById("player-stat-cards");
+  var playerGamesTableWrap = document.getElementById("player-games-table-wrap");
+  var playerDatalist = document.getElementById("player-datalist");
+  var playerNameToId = {};
+
+  function switchTab(tabName, opts) {
+    opts = opts || {};
+    tabBtns.forEach(function (btn) {
+      var isActive = (btn.getAttribute("data-tab") === tabName);
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+    if (tabTeams) {
+      tabTeams.classList.toggle("active", tabName === "teams");
+      tabTeams.hidden = (tabName !== "teams");
+    }
+    if (tabPlayers) {
+      tabPlayers.classList.toggle("active", tabName === "players");
+      tabPlayers.hidden = (tabName !== "players");
+      if (tabName === "players" && !opts.skipDefaultPlayer) {
+        if (Object.keys(playerNameToId).length === 0) {
+          loadPlayers().then(defaultToAlexSarr);
+        } else {
+          defaultToAlexSarr();
+        }
+      }
+    }
+  }
+  function defaultToAlexSarr() {
+    if (!playerContentEl || !playerContentEl.classList.contains("hidden")) return;
+    var name = "Alex Sarr";
+    if (playerNameToId[name]) {
+      playerSearchEl.value = name;
+      fetchPlayerStats();
+      return;
+    }
+    var key = Object.keys(playerNameToId).filter(function (k) { return k.indexOf("Sarr") !== -1 && k.indexOf("Alex") !== -1; })[0];
+    if (key) {
+      playerSearchEl.value = key;
+      fetchPlayerStats();
+    } else {
+      playerSearchEl.value = name;
+      fetchPlayerStats();
+    }
+  }
+  tabBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      switchTab(btn.getAttribute("data-tab"));
+    });
+  });
+
+  function loadPlayers() {
+    if (!playerDatalist) return Promise.resolve();
+    return fetch("/api/players")
+      .then(function (r) { return r.json(); })
+      .then(function (list) {
+        if (!Array.isArray(list)) return;
+        playerNameToId = {};
+        playerDatalist.innerHTML = "";
+        list.forEach(function (p) {
+          var name = p.full_name || p.name || "";
+          var id = String(p.id != null ? p.id : "");
+          if (!name || !id) return;
+          playerNameToId[name] = id;
+          var opt = document.createElement("option");
+          opt.value = name;
+          playerDatalist.appendChild(opt);
+        });
+      })
+      .catch(function () {});
+  }
+  function showPlayerDropdown() {
+    var input = playerSearchEl;
+    var dropdown = document.getElementById("player-dropdown");
+    if (!input || !dropdown) return;
+    var q = (input.value || "").trim().toLowerCase();
+    var names = Object.keys(playerNameToId).filter(function (name) {
+      return name.toLowerCase().indexOf(q) !== -1;
+    }).slice(0, 15);
+    dropdown.innerHTML = "";
+    dropdown.hidden = names.length === 0;
+    if (input) input.setAttribute("aria-expanded", names.length > 0 ? "true" : "false");
+    names.forEach(function (name) {
+      var div = document.createElement("div");
+      div.className = "player-dropdown-item";
+      div.setAttribute("role", "option");
+      div.textContent = name;
+      div.onmousedown = function (e) {
+        e.preventDefault();
+        input.value = name;
+        dropdown.hidden = true;
+        input.setAttribute("aria-expanded", "false");
+      };
+      dropdown.appendChild(div);
+    });
+  }
+  function hidePlayerDropdown() {
+    var dropdown = document.getElementById("player-dropdown");
+    if (dropdown) {
+      dropdown.hidden = true;
+      if (playerSearchEl) playerSearchEl.setAttribute("aria-expanded", "false");
+    }
+  }
+  if (playerSearchEl) {
+    var dropdownHideTimer = null;
+    playerSearchEl.addEventListener("focus", function () {
+      if (Object.keys(playerNameToId).length === 0) loadPlayers().then(showPlayerDropdown);
+      else showPlayerDropdown();
+    });
+    playerSearchEl.addEventListener("input", showPlayerDropdown);
+    playerSearchEl.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") hidePlayerDropdown();
+    });
+    playerSearchEl.addEventListener("blur", function () {
+      dropdownHideTimer = setTimeout(hidePlayerDropdown, 150);
+    });
+    var dropdownEl = document.getElementById("player-dropdown");
+    if (dropdownEl) {
+      dropdownEl.addEventListener("mousedown", function () {
+        if (dropdownHideTimer) clearTimeout(dropdownHideTimer);
+      });
+    }
+  }
+
+  function findPlayerId(searchValue) {
+    if (!searchValue || !searchValue.trim()) return null;
+    var q = searchValue.trim();
+    if (playerNameToId[q]) return playerNameToId[q];
+    var lower = q.toLowerCase();
+    for (var name in playerNameToId) {
+      if (name.toLowerCase().indexOf(lower) === 0) return playerNameToId[name];
+    }
+    for (var name in playerNameToId) {
+      if (name.toLowerCase().indexOf(lower) !== -1) return playerNameToId[name];
+    }
+    return null;
+  }
+
+  function renderPlayerPage(data) {
+    if (!data || data.error) {
+      if (playerLoadingEl) playerLoadingEl.textContent = data && data.error ? data.error : "Failed to load player.";
+      if (playerContentEl) playerContentEl.classList.add("hidden");
+      return;
+    }
+    if (playerLoadingEl) playerLoadingEl.classList.add("hidden");
+    var playerHeaderEl = document.getElementById("player-header");
+    var playerPhotoEl = document.getElementById("player-photo");
+    var playerNameEl = document.getElementById("player-name");
+    var playerTeamLogoEl = document.getElementById("player-team-logo");
+    if (playerNameEl) playerNameEl.textContent = data.player_name || "Player";
+    if (playerPhotoEl) {
+      playerPhotoEl.src = "https://cdn.nba.com/headshots/nba/latest/260x190/" + (data.player_id || "") + ".png";
+      playerPhotoEl.alt = data.player_name ? data.player_name + " headshot" : "";
+      playerPhotoEl.onerror = function () { this.style.display = "none"; };
+      playerPhotoEl.style.display = "";
+    }
+    if (playerTeamLogoEl && data.team_abbreviation) {
+      playerTeamLogoEl.src = getLogoUrl(data.team_abbreviation);
+      playerTeamLogoEl.alt = data.team_abbreviation + " logo";
+      playerTeamLogoEl.title = data.team_abbreviation;
+      playerTeamLogoEl.style.display = "";
+    } else if (playerTeamLogoEl) {
+      playerTeamLogoEl.style.display = "none";
+    }
+    var playerTeamWrapEl = document.getElementById("player-team-wrap");
+    if (playerHeaderEl) { playerHeaderEl.classList.remove("hidden"); playerHeaderEl.style.display = ""; }
+    if (playerTeamWrapEl) { playerTeamWrapEl.classList.remove("hidden"); playerTeamWrapEl.style.display = ""; }
+    var summary = data.summary || {};
+    var games = data.games || [];
+    var chronological = games.slice().reverse();
+    var monthNum = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+    function shortDate(dateStr) {
+      if (!dateStr) return "";
+      var m = dateStr.match(/^(\w{3})\s+(\d+)/);
+      if (!m) return dateStr;
+      var mon = monthNum[m[1]];
+      var day = parseInt(m[2], 10);
+      return (mon != null ? mon + "/" + day : dateStr);
+    }
+    /* Higher-contrast, colorblind-friendly palette (matches Teams tab CSS vars). Red -> yellow -> light green for distinct steps. */
+    function heatmapColor(ratio) {
+      var low = "#dc2626", high = "#34d399";
+      if (ratio <= 0) return low;
+      if (ratio >= 1) return high;
+      /* Interpolate hue through yellow (0=red, 60=yellow, 120=green) so low/mid/high are clearly distinct */
+      var hue = Math.round(ratio * 120);
+      return "hsl(" + hue + ", 65%, 52%)";
+    }
+    var maxPts = Math.max.apply(null, chronological.map(function (g) { return g.pts || 0; }).concat(1));
+    var maxReb = Math.max.apply(null, chronological.map(function (g) { return g.reb || 0; }).concat(1));
+    var maxAst = Math.max.apply(null, chronological.map(function (g) { return g.ast || 0; }).concat(1));
+    var maxMin = Math.max.apply(null, chronological.map(function (g) { return g.min != null ? g.min : 0; }).concat(1));
+    function barChartHtml(chronoGames, valueKey, maxVal) {
+      if (!chronoGames.length) return "";
+      var values = chronoGames.map(function (g) {
+        if (valueKey === "pts") return g.pts || 0;
+        if (valueKey === "reb") return g.reb || 0;
+        if (valueKey === "ast") return g.ast || 0;
+        return g.min != null ? g.min : 0;
+      });
+      var dates = chronoGames.map(function (g) { return shortDate(g.date); });
+      function oppFromMatchup(m) {
+        if (!m) return "";
+        var s = (m + "").split(" vs. ");
+        if (s.length === 2) return s[1].trim();
+        s = (m + "").split(" @ ");
+        if (s.length === 2) return s[1].trim();
+        return m;
+      }
+      return '<div class="player-chart-track">' + values.map(function (v, i) {
+        var g = chronoGames[i];
+        var opp = oppFromMatchup(g && g.matchup);
+        var dateStr = dates[i] || "";
+        var tip = dateStr + (opp ? " · " + opp : "") + " · " + v;
+        var pct = maxVal > 0 ? Math.min(100, (v / maxVal) * 100) : 0;
+        var ratio = maxVal > 0 ? v / maxVal : 0;
+        var barColor = heatmapColor(ratio);
+        return '<div class="player-chart-bar-cell"><span class="player-chart-bar-value">' + v + '</span><div class="player-chart-bar" style="height:' + pct + '%;background:' + barColor + '" title="' + escapeHtml(tip) + '" data-date="' + escapeHtml(dateStr) + '" data-opp="' + escapeHtml(opp || "") + '" data-value="' + escapeHtml(String(v)) + '"></div></div>';
+      }).join("") + '</div><div class="player-chart-labels">' + dates.map(function (d) {
+        return '<span class="player-chart-dot" title="' + escapeHtml(d) + '">' + escapeHtml(d) + '</span>';
+      }).join("") + '</div>';
+    }
+    var cardsHtml =
+      '<div class="player-stat-card"><div class="stat-label">Points</div><div class="stat-value">' + (summary.ppg_avg != null ? summary.ppg_avg : "—") + ' <span class="stat-unit">ppg</span></div><div class="player-chart-wrap">' + barChartHtml(chronological, "pts", maxPts) + '</div></div>' +
+      '<div class="player-stat-card"><div class="stat-label">Rebounds</div><div class="stat-value">' + (summary.rpg_avg != null ? summary.rpg_avg : "—") + ' <span class="stat-unit">rpg</span></div><div class="player-chart-wrap">' + barChartHtml(chronological, "reb", maxReb) + '</div></div>' +
+      '<div class="player-stat-card"><div class="stat-label">Assists</div><div class="stat-value">' + (summary.apg_avg != null ? summary.apg_avg : "—") + ' <span class="stat-unit">apg</span></div><div class="player-chart-wrap">' + barChartHtml(chronological, "ast", maxAst) + '</div></div>' +
+      '<div class="player-stat-card"><div class="stat-label">Minutes</div><div class="stat-value">' + (summary.min_avg != null ? summary.min_avg : "—") + ' <span class="stat-unit">min</span></div><div class="player-chart-wrap">' + barChartHtml(chronological, "min", maxMin) + '</div></div>';
+    if (playerStatCardsEl) playerStatCardsEl.innerHTML = cardsHtml;
+    (function setupBarTooltips() {
+      var tooltip = document.getElementById("player-chart-tooltip");
+      if (!tooltip) {
+        tooltip = document.createElement("div");
+        tooltip.id = "player-chart-tooltip";
+        tooltip.className = "player-chart-tooltip";
+        tooltip.setAttribute("role", "tooltip");
+        tooltip.hidden = true;
+        document.body.appendChild(tooltip);
+      }
+      var bars = playerStatCardsEl ? playerStatCardsEl.querySelectorAll(".player-chart-bar") : [];
+      bars.forEach(function (bar) {
+        bar.addEventListener("mouseenter", function () {
+          var d = bar.getAttribute("data-date") || "";
+          var o = bar.getAttribute("data-opp") || "";
+          var v = bar.getAttribute("data-value") || "";
+          tooltip.innerHTML = "<span class=\"player-chart-tooltip-row\"><strong>Date</strong> " + escapeHtml(d) + "</span><span class=\"player-chart-tooltip-row\"><strong>Opp</strong> " + escapeHtml(o) + "</span><span class=\"player-chart-tooltip-row\"><strong>Value</strong> " + escapeHtml(v) + "</span>";
+          tooltip.hidden = false;
+          var rect = bar.getBoundingClientRect();
+          requestAnimationFrame(function () {
+            var ttRect = tooltip.getBoundingClientRect();
+            var left = rect.left + (rect.width / 2) - (ttRect.width / 2);
+            var top = rect.top - ttRect.height - 6;
+            if (top < 8) top = rect.bottom + 6;
+            if (left < 8) left = 8;
+            if (left + ttRect.width > window.innerWidth - 8) left = window.innerWidth - ttRect.width - 8;
+            tooltip.style.left = left + "px";
+            tooltip.style.top = top + "px";
+          });
+        });
+        bar.addEventListener("mouseleave", function () {
+          tooltip.hidden = true;
+        });
+      });
+    })();
+    var minVals = games.map(function (g) { return g.min; }).filter(function (x) { return x != null && x !== ""; });
+    var ptsVals = games.map(function (g) { return g.pts; }).filter(function (x) { return x != null; });
+    var rebVals = games.map(function (g) { return g.reb; }).filter(function (x) { return x != null; });
+    var astVals = games.map(function (g) { return g.ast; }).filter(function (x) { return x != null; });
+    var minMin = minVals.length ? Math.min.apply(null, minVals) : 0;
+    var maxMin = minVals.length ? Math.max.apply(null, minVals) : 1;
+    var minPts = ptsVals.length ? Math.min.apply(null, ptsVals) : 0;
+    var maxPtsT = ptsVals.length ? Math.max.apply(null, ptsVals) : 1;
+    var minReb = rebVals.length ? Math.min.apply(null, rebVals) : 0;
+    var maxRebT = rebVals.length ? Math.max.apply(null, rebVals) : 1;
+    var minAst = astVals.length ? Math.min.apply(null, astVals) : 0;
+    var maxAstT = astVals.length ? Math.max.apply(null, astVals) : 1;
+    function heatmapStyle(val, minV, maxV) {
+      if (val == null || val === "" || maxV <= minV) return "";
+      var r = (val - minV) / (maxV - minV);
+      return "background:" + heatmapColor(r) + ";color:#fff;font-weight:600;";
+    }
+    var rows = games.map(function (g) {
+      var minStr = g.min != null ? g.min : "—";
+      var minStyle = g.min != null ? heatmapStyle(g.min, minMin, maxMin) : "";
+      var ptsStyle = g.pts != null ? heatmapStyle(g.pts, minPts, maxPtsT) : "";
+      var rebStyle = g.reb != null ? heatmapStyle(g.reb, minReb, maxRebT) : "";
+      var astStyle = g.ast != null ? heatmapStyle(g.ast, minAst, maxAstT) : "";
+      return "<tr><td" + (minStyle ? ' style="' + minStyle + '"' : "") + ">" + minStr + "</td><td>" + escapeHtml(g.date) + "</td><td>" + escapeHtml(g.matchup) + "</td><td" + (ptsStyle ? ' style="' + ptsStyle + '"' : "") + ">" + (g.pts != null ? g.pts : "—") + "</td><td" + (rebStyle ? ' style="' + rebStyle + '"' : "") + ">" + (g.reb != null ? g.reb : "—") + "</td><td" + (astStyle ? ' style="' + astStyle + '"' : "") + ">" + (g.ast != null ? g.ast : "—") + "</td></tr>";
+    }).join("");
+    var tableHtml = '<table class="player-games-table"><thead><tr><th>MIN</th><th>Date</th><th>Matchup</th><th>PTS</th><th>REB</th><th>AST</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    if (playerGamesTableWrap) playerGamesTableWrap.innerHTML = tableHtml;
+    if (playerContentEl) playerContentEl.classList.remove("hidden");
+  }
+
+  function fetchPlayerStats() {
+    var id = findPlayerId(playerSearchEl ? playerSearchEl.value : "");
+    if (!id) {
+      if (playerLoadingEl) { playerLoadingEl.textContent = "Select or type a player name."; playerLoadingEl.classList.remove("hidden"); }
+      if (playerContentEl) playerContentEl.classList.add("hidden");
+      return;
+    }
+    switchTab("players", { skipDefaultPlayer: true });
+    if (playerLoadingEl) { playerLoadingEl.textContent = "Loading player…"; playerLoadingEl.classList.remove("hidden"); }
+    if (playerContentEl) playerContentEl.classList.add("hidden");
+    if (btnPlayerGo) btnPlayerGo.disabled = true;
+    fetchPlayerStatsWithAbort(id)
+      .then(function (data) {
+        if (!data) return;
+        renderPlayerPage(data);
+      })
+      .catch(function (err) {
+        if (playerLoadingEl) playerLoadingEl.textContent = (err && err.message) || "Failed to load. Try again.";
+        if (playerContentEl) playerContentEl.classList.add("hidden");
+      })
+      .then(function () {
+        if (btnPlayerGo) btnPlayerGo.disabled = false;
+      });
+  }
+  function fetchPlayerStatsById(playerId) {
+    var id = playerId != null ? String(playerId).trim() : "";
+    if (!id) return;
+    switchTab("players", { skipDefaultPlayer: true });
+    if (playerLoadingEl) {
+      playerLoadingEl.innerHTML = "Loading player… <button type=\"button\" id=\"player-loading-cancel\" class=\"player-loading-cancel\">Cancel</button>";
+      playerLoadingEl.classList.remove("hidden");
+    }
+    if (playerContentEl) playerContentEl.classList.add("hidden");
+    if (playerHeaderEl) playerHeaderEl.classList.add("hidden");
+    var playerTeamWrapEl = document.getElementById("player-team-wrap");
+    if (playerTeamWrapEl) playerTeamWrapEl.classList.add("hidden");
+    if (btnPlayerGo) btnPlayerGo.disabled = true;
+    var aborted = false;
+    function done() {
+      if (btnPlayerGo) btnPlayerGo.disabled = false;
+    }
+    function showError(msg) {
+      if (aborted) return;
+      if (playerLoadingEl) {
+        playerLoadingEl.textContent = msg;
+        playerLoadingEl.classList.remove("hidden");
+      }
+      if (playerContentEl) playerContentEl.classList.add("hidden");
+    }
+    function hideLoading() {
+      if (playerLoadingEl) playerLoadingEl.classList.add("hidden");
+    }
+    var cancelBtnEl = document.getElementById("player-loading-cancel");
+    if (cancelBtnEl) {
+      cancelBtnEl.onclick = function () {
+        aborted = true;
+        abortPlayerFetch();
+        hideLoading();
+        showError("Cancelled. Search a player above or click a name on Teams to Target.");
+        done();
+      };
+    }
+    var timeoutPromise = new Promise(function (_, reject) {
+      setTimeout(function () { reject(new Error("Request timed out (20s). Try again or use search above.")); }, 20000);
+    });
+    var fetchPromise = fetchPlayerStatsWithAbort(id).then(function (data) {
+      if (aborted) return null;
+      return data;
+    });
+    Promise.race([fetchPromise, timeoutPromise])
+      .then(function (data) {
+        if (aborted || !data) return;
+        if (playerSearchEl && data.player_name) playerSearchEl.value = data.player_name;
+        hideLoading();
+        renderPlayerPage(data);
+      })
+      .catch(function (err) {
+        if (aborted) return;
+        showError(err && err.message ? err.message : "Failed to load. Try again.");
+      })
+      .then(done);
+  }
+  document.body.addEventListener("click", function (e) {
+    var link = e.target && e.target.closest && e.target.closest(".player-name-link");
+    if (!link) return;
+    var id = link.getAttribute("data-player-id");
+    if (id) fetchPlayerStatsById(id);
+  });
+
+  var playerFetchController = null;
+  function abortPlayerFetch() {
+    if (playerFetchController) {
+      try { playerFetchController.abort(); } catch (e) {}
+      playerFetchController = null;
+    }
+  }
+  function fetchPlayerStatsWithAbort(id) {
+    abortPlayerFetch();
+    playerFetchController = new AbortController();
+    var signal = playerFetchController.signal;
+    return fetch("/api/player/" + encodeURIComponent(id) + "/last-10", { signal: signal })
+      .then(function (r) {
+        if (!r.ok) {
+          return r.text().then(function (text) {
+            var msg = "Request failed (" + r.status + "). Try again.";
+            try { var d = JSON.parse(text); if (d.error) msg = d.error; } catch (e) {}
+            throw new Error(msg);
+          });
+        }
+        return r.json();
+      })
+      .catch(function (err) {
+        if (err.name === "AbortError") return null;
+        throw err;
+      });
+  }
+
+  if (btnPlayerGo) btnPlayerGo.addEventListener("click", fetchPlayerStats);
+  if (playerSearchEl) playerSearchEl.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); fetchPlayerStats(); } });
+
   var LOGO_BASE = "https://a.espncdn.com/i/teamlogos/nba/500";
   var LOGO_SLUG = { uta: "utah", brk: "bkn", gsw: "gs", nop: "no", sas: "sa", nyk: "ny", njk: "nj" };
   function getLogoUrl(abbr) {
@@ -268,37 +689,44 @@
           return "<tr><td>" + targetCell + "</td><td>" + oppLogo + "</td><td>—</td><td>—</td></tr>";
         }
         var first = list[0];
-        var pid1 = first.player_id != null ? first.player_id : "";
+        var pid1 = first.player_id != null ? String(first.player_id).trim() : "";
+        var name1 = (first.player_name || "").trim();
+        var name1Html = pid1 ? "<span class=\"player-name-link\" data-player-id=\"" + escapeHtml(pid1) + "\" data-player-name=\"" + escapeHtml(name1) + "\" title=\"View player stats\">" + initialLastName(first.player_name) + "</span>" : initialLastName(first.player_name);
         var row1 = "<tr><td rowspan=\"" + list.length + "\">" + targetCell + "</td><td rowspan=\"" + list.length + "\">" + oppLogo + "</td>" +
-          "<td>" + initialLastName(first.player_name) + " <span class=\"stat-num\">(" + first[valKey] + ")</span></td>" +
-          "<td class=\"last-10-cell\" data-player-id=\"" + pid1 + "\">—</td></tr>";
+          "<td>" + name1Html + " <span class=\"stat-num\">(" + first[valKey] + ")</span></td>" +
+          "<td class=\"last-10-cell\" data-player-id=\"" + escapeHtml(pid1) + "\">—</td></tr>";
         var rest = list.slice(1).map(function (p) {
-          var pid = p.player_id != null ? p.player_id : "";
-          return "<tr><td>" + initialLastName(p.player_name) + " <span class=\"stat-num\">(" + p[valKey] + ")</span></td>" +
-            "<td class=\"last-10-cell\" data-player-id=\"" + pid + "\">—</td></tr>";
+          var pid = p.player_id != null ? String(p.player_id).trim() : "";
+          var pname = (p.player_name || "").trim();
+          var nameHtml = pid ? "<span class=\"player-name-link\" data-player-id=\"" + escapeHtml(pid) + "\" data-player-name=\"" + escapeHtml(pname) + "\" title=\"View player stats\">" + initialLastName(p.player_name) + "</span>" : initialLastName(p.player_name);
+          return "<tr><td>" + nameHtml + " <span class=\"stat-num\">(" + p[valKey] + ")</span></td>" +
+            "<td class=\"last-10-cell\" data-player-id=\"" + escapeHtml(pid) + "\">—</td></tr>";
         }).join("");
         return row1 + rest;
       }).join("");
       return '<div class="summary-subtable-wrap summary-subtable-' + apiStat + '" data-stat="' + apiStat + '"><h4 class="summary-subtable-title">' + escapeHtml(sectionTitle) + "</h4>" +
-        '<table class="summary-table"><thead><tr><th>Target</th><th>Next opp</th><th>Player (Season AVG)</th><th>Last 10 Games</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+        '<table class="summary-table"><thead><tr><th>Target</th><th>Next opp</th><th>Player (Season AVG)</th><th>Last 10 G</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
     }
 
-    var lead = isOvers
-      ? "If you're betting OVERS, consider going against these teams"
-      : "If you're betting UNDERS, consider going against these teams";
-    var html = '<p class="summary-lead">' + escapeHtml(lead) + "</p>" +
-      '<div class="summary-content">' +
-      miniTableHtml("Points", top3Ppg, "top_3_scorers", "Player (avg)", "pts") +
-      miniTableHtml("Rebounds", top3Rpg, "top_3_rebounders", "Player (avg)", "reb") +
-      miniTableHtml("Assists", top3Apg, "top_3_assisters", "Player (avg)", "ast") +
-      "</div>";
+    var prefix = isOvers ? "overs" : "unders";
+    var ptsEl = document.getElementById(prefix + "-summary-pts");
+    var rebEl = document.getElementById(prefix + "-summary-reb");
+    var astEl = document.getElementById(prefix + "-summary-ast");
+    var parentEl = document.getElementById(prefix + "-summary");
 
-    var el = document.getElementById(isOvers ? "overs-summary" : "unders-summary");
-    if (el) {
-      el.innerHTML = html;
-      el.classList.remove("hidden");
-      fillSummaryLast10(el);
+    if (ptsEl) {
+      ptsEl.innerHTML = miniTableHtml("Points", top3Ppg, "top_3_scorers", "Player (avg)", "pts");
+      ptsEl.classList.remove("hidden");
     }
+    if (rebEl) {
+      rebEl.innerHTML = miniTableHtml("Rebounds", top3Rpg, "top_3_rebounders", "Player (avg)", "reb");
+      rebEl.classList.remove("hidden");
+    }
+    if (astEl) {
+      astEl.innerHTML = miniTableHtml("Assists", top3Apg, "top_3_assisters", "Player (avg)", "ast");
+      astEl.classList.remove("hidden");
+    }
+    if (parentEl) fillSummaryLast10(parentEl);
   }
 
   function fillSummaryLast10(container) {
