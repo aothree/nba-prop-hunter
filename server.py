@@ -786,13 +786,26 @@ def get_league_defense_last_10():
     lg_rpg = league_avg.get("rpg") or 0
     lg_apg = league_avg.get("apg") or 0
 
-    try:
-        time.sleep(NBA_DELAY)
-        lgl = LeagueGameLog(season=SEASON, timeout=60, headers=NBA_HEADERS)
-        df = lgl.get_data_frames()[0]
-    except Exception as e:
-        print("[league-defense] LeagueGameLog failed:", e)
-        return _league_defense_cache if _league_defense_cache else {"teams": [], "league_avg": league_avg}
+    df = None
+    last_error = None
+    for attempt in range(3):
+        try:
+            time.sleep(NBA_DELAY)
+            lgl = LeagueGameLog(season=SEASON, timeout=90, headers=NBA_HEADERS)
+            df = lgl.get_data_frames()[0]
+            if df is not None and not df.empty:
+                break
+        except Exception as e:
+            last_error = e
+            print("[league-defense] LeagueGameLog attempt %s failed: %s" % (attempt + 1, e))
+        if attempt < 2:
+            time.sleep(2)
+    if df is None or df.empty:
+        err_msg = str(last_error) if last_error else "No data returned"
+        print("[league-defense] All attempts failed. Last error:", err_msg)
+        return _league_defense_cache if _league_defense_cache else {
+            "teams": [], "league_avg": league_avg, "error": "NBA API failed: " + err_msg
+        }
 
     if df is None or df.empty:
         return _league_defense_cache if _league_defense_cache else {"teams": [], "league_avg": league_avg}

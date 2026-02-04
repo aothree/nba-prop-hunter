@@ -163,9 +163,7 @@
     if (playerLoadingEl) playerLoadingEl.classList.add("hidden");
     var playerHeaderEl = document.getElementById("player-header");
     var playerPhotoEl = document.getElementById("player-photo");
-    var playerNameEl = document.getElementById("player-name");
     var playerTeamLogoEl = document.getElementById("player-team-logo");
-    if (playerNameEl) playerNameEl.textContent = data.player_name || "Player";
     if (playerPhotoEl) {
       playerPhotoEl.src = "https://cdn.nba.com/headshots/nba/latest/260x190/" + (data.player_id || "") + ".png";
       playerPhotoEl.alt = data.player_name ? data.player_name + " headshot" : "";
@@ -180,9 +178,7 @@
     } else if (playerTeamLogoEl) {
       playerTeamLogoEl.style.display = "none";
     }
-    var playerTeamWrapEl = document.getElementById("player-team-wrap");
     if (playerHeaderEl) { playerHeaderEl.classList.remove("hidden"); playerHeaderEl.style.display = ""; }
-    if (playerTeamWrapEl) { playerTeamWrapEl.classList.remove("hidden"); playerTeamWrapEl.style.display = ""; }
     var summary = data.summary || {};
     var games = data.games || [];
     var chronological = games.slice().reverse();
@@ -195,14 +191,14 @@
       var day = parseInt(m[2], 10);
       return (mon != null ? mon + "/" + day : dateStr);
     }
-    /* Higher-contrast, colorblind-friendly palette (matches Teams tab CSS vars). Red -> yellow -> light green for distinct steps. */
+    /* Player page only: light grey-green (low) -> dark green (high), visible on white cards */
     function heatmapColor(ratio) {
-      var low = "#dc2626", high = "#34d399";
-      if (ratio <= 0) return low;
-      if (ratio >= 1) return high;
-      /* Interpolate hue through yellow (0=red, 60=yellow, 120=green) so low/mid/high are clearly distinct */
-      var hue = Math.round(ratio * 120);
-      return "hsl(" + hue + ", 65%, 52%)";
+      if (ratio <= 0) return "rgb(235, 242, 235)";
+      if (ratio >= 1) return "rgb(22, 101, 52)";
+      var r = Math.round(235 - (235 - 22) * ratio);
+      var g = Math.round(242 - (242 - 101) * ratio);
+      var b = Math.round(235 - (235 - 52) * ratio);
+      return "rgb(" + r + ", " + g + ", " + b + ")";
     }
     var maxPts = Math.max.apply(null, chronological.map(function (g) { return g.pts || 0; }).concat(1));
     var maxReb = Math.max.apply(null, chronological.map(function (g) { return g.reb || 0; }).concat(1));
@@ -294,7 +290,8 @@
     function heatmapStyle(val, minV, maxV) {
       if (val == null || val === "" || maxV <= minV) return "";
       var r = (val - minV) / (maxV - minV);
-      return "background:" + heatmapColor(r) + ";color:#fff;font-weight:600;";
+      var textColor = r < 0.5 ? "#1a1a1a" : "#fff";
+      return "background:" + heatmapColor(r) + ";color:" + textColor + ";font-weight:600;";
     }
     var rows = games.map(function (g) {
       var minStr = g.min != null ? g.min : "—";
@@ -343,8 +340,6 @@
     }
     if (playerContentEl) playerContentEl.classList.add("hidden");
     if (playerHeaderEl) playerHeaderEl.classList.add("hidden");
-    var playerTeamWrapEl = document.getElementById("player-team-wrap");
-    if (playerTeamWrapEl) playerTeamWrapEl.classList.add("hidden");
     if (btnPlayerGo) btnPlayerGo.disabled = true;
     var aborted = false;
     function done() {
@@ -874,7 +869,7 @@
           renderLeagueCharts(data);
           return;
         }
-        if (loadingEl) loadingEl.textContent = "No league data available.";
+        if (loadingEl) loadingEl.textContent = (data.error && String(data.error).trim()) ? data.error : "No league data available.";
         return;
       } catch (e) {
         if (attempt < maxRetries && loadingEl) {

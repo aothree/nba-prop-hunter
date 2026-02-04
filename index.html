@@ -118,15 +118,10 @@
     </div>
 
     <div id="tab-players" class="tab-panel" role="tabpanel" hidden>
-      <div class="league-overview">
+      <div class="tab-players-inner">
         <div class="player-profile-section">
           <div class="player-search-row">
-            <div id="player-header" class="player-header-left hidden">
-              <img id="player-photo" class="player-photo" src="" alt="" role="presentation">
-              <h2 id="player-name" class="player-name"></h2>
-            </div>
             <div class="player-search-wrap">
-              <label for="player-search">Player</label>
               <div class="player-search-input-wrap">
                 <input type="text" id="player-search" list="player-datalist" placeholder="Type to search player name…" aria-label="Search player by name" aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox">
                 <datalist id="player-datalist"></datalist>
@@ -134,18 +129,21 @@
               </div>
               <button type="button" id="btn-player-go">View stats</button>
             </div>
-            <div id="player-team-wrap" class="player-header-right hidden">
-              <img id="player-team-logo" class="player-team-logo" src="" alt="" title="">
-            </div>
+          </div>
+          <div id="player-header" class="player-header-strip hidden">
+            <img id="player-photo" class="player-photo" src="" alt="" role="presentation">
+            <img id="player-team-logo" class="player-team-logo" src="" alt="" title="">
           </div>
           <p id="player-loading" class="league-overview-loading hidden">Loading player…</p>
         </div>
         <div id="player-content" class="player-content hidden">
           <div id="player-stat-cards" class="player-stat-cards"></div>
-          <div class="league-overview-header player-table-header">
-            <h2 class="league-overview-title">Last 20 games</h2>
+          <div class="league-overview player-games-section">
+            <div class="league-overview-header">
+              <h2 class="league-overview-title">Last 20 games</h2>
+            </div>
+            <div id="player-games-table-wrap" class="player-games-table-wrap"></div>
           </div>
-          <div id="player-games-table-wrap" class="player-games-table-wrap"></div>
         </div>
       </div>
     </div>

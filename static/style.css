@@ -99,7 +99,10 @@ body {
   display: block;
 }
 
-/* Players tab: search + profile — single tight row (datagolf-style) */
+/* Players tab: one card (profile section), no double wrapper */
+.tab-players-inner {
+  display: block;
+}
 .player-profile-section {
   background: #e2e5ea;
   border: 1px solid var(--border);
@@ -114,20 +117,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1.25rem;
   flex-wrap: wrap;
   width: 100%;
-}
-.player-header-left,
-.player-header-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-shrink: 0;
-}
-.player-header-left.hidden,
-.player-header-right.hidden {
-  display: none !important;
 }
 .player-search-wrap {
   display: flex;
@@ -141,9 +132,16 @@ body {
 .player-profile-section .player-search-wrap {
   margin-bottom: 0;
 }
-.player-search-wrap label {
-  color: var(--text-muted);
-  font-size: 0.9rem;
+.player-header-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  width: 100%;
+  margin-top: 1rem;
+}
+.player-header-strip.hidden {
+  display: none !important;
 }
 .player-search-wrap input {
   font-family: var(--font);
@@ -372,54 +370,36 @@ body {
 .player-games-table tbody tr:hover {
   background: var(--surface);
 }
-/* Player page: photo left, search center, logo right — single row */
-.player-header-left.hidden {
-  display: none !important;
-}
+/* Player page: large pic + team logo below search row */
 .player-photo {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
   object-fit: cover;
   border-radius: 50%;
   background: var(--surface);
   border: 2px solid var(--border);
   flex-shrink: 0;
 }
-@media (min-width: 520px) {
-  .player-photo {
-    width: 96px;
-    height: 96px;
-  }
-}
-.player-name {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-@media (min-width: 520px) {
-  .player-name { font-size: 1.2rem; }
+.player-header-strip .player-photo {
+  width: 96px;
+  height: 96px;
 }
 .player-team-logo {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   flex-shrink: 0;
 }
-@media (min-width: 520px) {
-  .player-team-logo {
-    width: 64px;
-    height: 64px;
-  }
+.player-header-strip .player-team-logo {
+  width: 72px;
+  height: 72px;
 }
-.player-table-header {
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
+/* Last 20 games: separate card at bottom (same style as Teams tab OVERS/UNDERS) */
+.player-games-section {
+  margin-top: 2rem;
 }
-.player-table-header .league-overview-title {
-  margin-bottom: 0;
+.player-games-section .league-overview-header {
+  margin: -1.5rem -1.5rem 1rem -1.5rem;
 }
 .player-heading {
   font-size: 1.1rem;
@@ -466,21 +446,23 @@ body {
 .league-overview.hidden { display: none; }
 .league-overview-header {
   text-align: center;
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
+  padding: 0.5rem 0 0.6rem 0;
+  margin: -1.5rem -1.5rem 1rem -1.5rem;
+  background: #e2e5ea;
   border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 .league-overview-title {
-  font-family: "Oswald", sans-serif;
-  font-size: clamp(2rem, 6vw, 2.75rem);
+  font-family: "Outfit", "Segoe UI", sans-serif;
+  font-size: 1.1rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  margin: 0 0 0.35rem 0;
+  letter-spacing: 0.03em;
+  margin: 0 0 0.2rem 0;
   text-align: center;
   color: var(--text);
 }
 .league-overview-subtitle {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   margin: 0;
   text-align: center;
