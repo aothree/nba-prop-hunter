@@ -3,23 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NBA Prop Hunter</title>
+  <title>NBA Prop Tool</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&family=Outfit:wght@500;600&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header class="site-header">
-    <div class="container site-header-inner">
-      <h1 class="site-title">&lt;nba prop hunter&gt;</h1>
-    </div>
-  </header>
-
   <div class="container">
     <nav class="tab-nav" role="tablist" aria-label="Main sections">
-      <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-tab="teams">Teams to Target</button>
-      <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="players">Players</button>
+      <div class="tab-nav-buttons">
+        <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-tab="teams">Teams to Target</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="players">Players</button>
+      </div>
+      <h1 class="tab-nav-logo">&lt;nba prop tool&gt;</h1>
     </nav>
 
     <div id="tab-teams" class="tab-panel active" role="tabpanel">

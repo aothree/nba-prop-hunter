@@ -1083,7 +1083,7 @@ def api_player_last_10(player_id):
                 return jsonify(logs[player_id])
             # Cache exists but player not in it — don't call NBA API (would timeout on Render)
             return jsonify({
-                "error": "This player's game log isn't in the cache. Try a player from the Teams to Target tables, or run the fetch script locally and push the updated cache.",
+                "error": "This player isn't in the quick-load cache. Try one of the players shown in Teams to Target (they load instantly), or run the app locally to fetch any player.",
                 "player_id": player_id,
             }), 503
         except Exception:

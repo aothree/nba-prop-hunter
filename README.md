@@ -1,11 +1,11 @@
-# NBA Prop Hunter
+# NBA Prop Tool
 
 Webapp to view a team's defensive performance over its last 10 games: points, rebounds, and assists allowed, plus the top 3 opponent scorers in each game with variance vs their season average.
 
 ---
 
 **Checkpoint (Feb 2025)** — *prop-hunter-baseline*  
-This version has: hero with “NBA Prop Hunter” + basketball art, OVERS/UNDERS sections (top 3 teams, green/red bars), summary tables with top 3 targets, ALL DATA heatmap, drill-down at bottom.  
+This version has: hero with “NBA Prop Tool” + basketball art, OVERS/UNDERS sections (top 3 teams, green/red bars), summary tables with top 3 targets, ALL DATA heatmap, drill-down at bottom.  
 **To refer to it:** say *“go back to prop-hunter-baseline”* or *“restore the prop-hunter-baseline version”*.
 
 ---

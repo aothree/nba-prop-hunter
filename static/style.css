@@ -27,42 +27,45 @@ body {
 
 .hidden { display: none; }
 
-/* Slim top bar — datagolf-style: minimal height, title right */
-.site-header {
-  background: #e2e5ea;
-  border-bottom: 1px solid var(--border);
-  padding: 0.4rem 0;
-}
-.site-header-inner {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-.site-title {
-  font-family: "Outfit", "Segoe UI", sans-serif;
-  font-size: 1.15rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.2;
-}
-.site-title:hover {
-  color: var(--text);
-}
-
 .container {
   max-width: min(1400px, 96vw);
   margin: 0 auto;
   padding: 2rem 1.5rem;
 }
 
-/* Tab navigation — centered buttons */
+/* Tab navigation — buttons centered (same as OVERS/UNDERS), logo top-right */
 .tab-nav {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 1.25rem;
+}
+.tab-nav-buttons {
+  grid-column: 2;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+.tab-nav-logo {
+  grid-column: 3;
+  justify-self: end;
+  font-family: "Outfit", "Segoe UI", sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.2;
+  padding: 0.4rem 0.75rem;
+  background: #e2e5ea;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+.tab-nav-logo:hover {
+  color: var(--text);
+  background: #d4d8de;
 }
 .tab-btn {
   font-family: var(--font);
@@ -332,10 +335,13 @@ body {
   padding-left: 2px;
 }
 
-/* Player last 10 games table */
+/* Player last 20 games table — skinnier, centered, full matchup text visible */
 .player-games-table-wrap {
   overflow-x: auto;
   margin-top: 0.5rem;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 42rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--card);
