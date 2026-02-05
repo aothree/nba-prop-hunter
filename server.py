@@ -2,6 +2,7 @@
 NBA Team Defense Webapp — Last 10 games: points/rebounds/assists allowed,
 and top 3 opponent scorers with variance vs season average.
 """
+import json
 import os
 import time
 from datetime import datetime, timezone
@@ -34,6 +35,8 @@ CACHE_SECONDS = 300
 
 # Delay (seconds) between NBA API calls to reduce rate-limit/blocking
 NBA_DELAY = 0.6
+# When set (e.g. in GitHub Action), use longer timeouts so fetch can complete
+NBA_LONG_TIMEOUT = os.environ.get("NBA_LONG_TIMEOUT") == "1"
 
 # Headers that help avoid NBA.com blocking (stats.nba.com)
 NBA_HEADERS = {
@@ -90,8 +93,8 @@ def get_league_averages():
     if _league_avg_cache is not None and (now - _league_avg_cache_time) < CACHE_SECONDS:
         return _league_avg_cache
     try:
-        # Short timeout: on Render the NBA API often doesn't respond; we fail fast and return a friendly error
-        ld = LeagueDashTeamStats(season=SEASON, timeout=15, headers=NBA_HEADERS)
+        to = 60 if NBA_LONG_TIMEOUT else 15
+        ld = LeagueDashTeamStats(season=SEASON, timeout=to, headers=NBA_HEADERS)
         df = ld.get_data_frames()[0]
     except Exception as e:
         print("[league-avg] LeagueDashTeamStats failed:", e)
@@ -772,18 +775,37 @@ def get_player_last_10_full(player_id: str):
 _league_defense_cache = None
 _league_defense_cache_time = 0
 
+# Pre-built league data: GitHub Action fetches once a day and commits data/league-defense.json
+LEAGUE_CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "league-defense.json")
+LEAGUE_CACHE_MAX_AGE_SECONDS = 26 * 3600  # 26 hours — serve from file if present and fresh
+FORCE_LEAGUE_FETCH = os.environ.get("FORCE_LEAGUE_FETCH") == "1"  # Used by scripts/fetch_league_data.py
+
 
 def get_league_defense_last_10():
     """
     For all 30 teams, return last 10 games PPG/RPG/APG allowed and variance vs league avg.
-    Uses LeagueGameLog only (one API call). Cached 5 min.
+    Prefer pre-built data/league-defense.json (updated daily by GitHub Action); else call NBA API.
     """
     global _league_defense_cache, _league_defense_cache_time
     now = time.time()
     if _league_defense_cache is not None and (now - _league_defense_cache_time) < CACHE_SECONDS:
         return _league_defense_cache
 
-    # League averages optional: if slow/fails we still try LeagueGameLog with default 0
+    # 1. Prefer cached file (fast, works on Render) unless forcing fresh fetch (e.g. daily script)
+    if not FORCE_LEAGUE_FETCH and os.path.isfile(LEAGUE_CACHE_FILE):
+        try:
+            with open(LEAGUE_CACHE_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            fetched_at = data.pop("_fetched_at", 0)
+            if now - fetched_at < LEAGUE_CACHE_MAX_AGE_SECONDS and data.get("teams"):
+                print("[league-defense] Serving from %s (%.1fh old)" % (LEAGUE_CACHE_FILE, (now - fetched_at) / 3600))
+                _league_defense_cache = data
+                _league_defense_cache_time = now
+                return data
+        except Exception as e:
+            print("[league-defense] Cache read failed:", e)
+
+    # 2. Live NBA API (slow / blocked on Render)
     try:
         league_avg = get_league_averages()
     except Exception as e:
@@ -795,11 +817,11 @@ def get_league_defense_last_10():
 
     df = None
     last_error = None
-    # Short timeouts so we finish in ~25s and return a friendly error instead of worker timeout
+    lgl_timeout = 90 if NBA_LONG_TIMEOUT else 20
     for attempt in range(2):
         try:
             time.sleep(NBA_DELAY)
-            lgl = LeagueGameLog(season=SEASON, timeout=20, headers=NBA_HEADERS)
+            lgl = LeagueGameLog(season=SEASON, timeout=lgl_timeout, headers=NBA_HEADERS)
             df = lgl.get_data_frames()[0]
             if df is not None and not df.empty:
                 break
@@ -814,11 +836,8 @@ def get_league_defense_last_10():
         return _league_defense_cache if _league_defense_cache else {
             "teams": [],
             "league_avg": league_avg,
-            "error": "League data unavailable: NBA API did not respond in time. On Render the NBA API often blocks or slows cloud servers. Run the app locally (python server.py, see README) for full data, or try again later."
+            "error": "League data unavailable: NBA API did not respond in time. Run the Update league data workflow (Actions → Update league data) or run the app locally (see README)."
         }
-
-    if df is None or df.empty:
-        return _league_defense_cache if _league_defense_cache else {"teams": [], "league_avg": league_avg}
 
     df.columns = [str(c).upper() if isinstance(c, str) else c for c in df.columns]
     if "GAME_ID" not in df.columns or "TEAM_ID" not in df.columns or "PTS" not in df.columns:

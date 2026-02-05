@@ -54,13 +54,25 @@ Open **http://127.0.0.1:5000** in your browser. Pick a team and click **View def
 
 ---
 
+## League data cache (fast app, works on Render)
+
+League OVERS/UNDERS data is **pre-built once a day** by a GitHub Action and committed to `data/league-defense.json`. The app serves from this file, so:
+
+- **No NBA API calls at request time** — page loads are fast.
+- **Works on Render** — the NBA API often blocks cloud IPs; with cached data the app doesn’t need to call it.
+
+**First-time setup:** In GitHub go to **Actions** → **Update league data** → **Run workflow**. Wait for it to finish (it fetches from the NBA API and commits `data/league-defense.json`). Then deploy (or redeploy) on Render so the service has the file. After that, the workflow runs daily on a schedule.
+
+You can run the workflow manually anytime to refresh the cache.
+
 ## Deploy on Render (share a link)
 
 1. Push this repo to **GitHub** (if you haven’t already).
-2. Go to [render.com](https://render.com) and sign up / log in.
-3. **New +** → **Web Service** → connect your GitHub and select this repo.
-4. Render will use **render.yaml** in the repo. **Important:** Set **Start Command** in the dashboard to `gunicorn -b 0.0.0.0:$PORT server:app --timeout 180` (see **[RENDER.md](RENDER.md)** for step-by-step). Without `--timeout 180`, league data will not load.
-5. Click **Create Web Service**. After the first deploy, you’ll get a URL like `https://nba-prop-hunter.onrender.com` — that’s the link you can share.
+2. Run the **Update league data** workflow once (Actions → Update league data → Run workflow) so `data/league-defense.json` exists.
+3. Go to [render.com](https://render.com) and sign up / log in.
+4. **New +** → **Web Service** → connect your GitHub and select this repo.
+5. Set **Start Command** to `gunicorn -b 0.0.0.0:$PORT server:app --timeout 180` (see **[RENDER.md](RENDER.md)**).
+6. Click **Create Web Service**. After deploy you’ll get a URL like `https://nba-prop-hunter.onrender.com`.
 
 **Note:** On the free tier the app sleeps after ~15 minutes of no traffic; the first visit after that may take 30–60 seconds to wake up.
 

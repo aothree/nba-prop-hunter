@@ -1,16 +1,17 @@
-# Deploying on Render — required step
+# Deploying on Render
 
-Render often **does not** use the start command from `render.yaml` for existing services. You must set it in the dashboard.
+## League data: use the cache
 
-## Fix "WORKER TIMEOUT" / league data not loading
+The app serves league OVERS/UNDERS from **`data/league-defense.json`**, which is updated once a day by a GitHub Action. That way the app does **not** call the NBA API from Render (which often blocks or times out).
+
+- **First time:** In GitHub go to **Actions** → **Update league data** → **Run workflow**. When it finishes, `data/league-defense.json` will be in the repo. Deploy (or redeploy) on Render so the service has that file.
+- After that, the workflow runs daily; redeploy on Render whenever you want the latest cache, or leave as-is for daily data.
+
+## Start Command (optional but recommended)
 
 1. Open [Render Dashboard](https://dashboard.render.com) → your **nba-prop-hunter** service.
-2. Go to **Settings** (left sidebar).
-3. Find **Start Command**.
-4. Set it to exactly:
-   ```bash
-   gunicorn -b 0.0.0.0:$PORT server:app --timeout 180
-   ```
-5. Click **Save Changes**, then **Manual Deploy** → **Deploy latest commit**.
+2. Go to **Settings** → **Start Command**.
+3. Set to: `gunicorn -b 0.0.0.0:$PORT server:app --timeout 180`
+4. Save and redeploy if needed.
 
-Without `--timeout 180`, the worker is killed after 30 seconds while waiting for the NBA API, and league data will not load.
+With cached league data, the app works even without this; the timeout helps for any remaining live API calls (e.g. team drill-down, players).
