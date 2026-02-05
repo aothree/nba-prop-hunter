@@ -59,7 +59,7 @@ Open **http://127.0.0.1:5000** in your browser. Pick a team and click **View def
 1. Push this repo to **GitHub** (if you haven’t already).
 2. Go to [render.com](https://render.com) and sign up / log in.
 3. **New +** → **Web Service** → connect your GitHub and select this repo.
-4. Render will use **render.yaml** in the repo (build: `pip install -r requirements.txt`, start: `gunicorn -b 0.0.0.0:$PORT server:app`). If you create the service manually instead, set those in the dashboard.
+4. Render will use **render.yaml** in the repo (build: `pip install -r requirements.txt`, start: `gunicorn -b 0.0.0.0:$PORT server:app --timeout 180`). If you created the service before that change, **update the Start Command** in the dashboard: **Settings → Build & Deploy → Start Command** set to `gunicorn -b 0.0.0.0:$PORT server:app --timeout 180`. Without `--timeout 180`, the league data request can be killed after 30 seconds.
 5. Click **Create Web Service**. After the first deploy, you’ll get a URL like `https://nba-prop-hunter.onrender.com` — that’s the link you can share.
 
 **Note:** On the free tier the app sleeps after ~15 minutes of no traffic; the first visit after that may take 30–60 seconds to wake up.

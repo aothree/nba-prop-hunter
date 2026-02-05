@@ -90,8 +90,8 @@ def get_league_averages():
     if _league_avg_cache is not None and (now - _league_avg_cache_time) < CACHE_SECONDS:
         return _league_avg_cache
     try:
-        # Use 35s timeout so we fail before gunicorn worker timeout (180s) and can still run LeagueGameLog
-        ld = LeagueDashTeamStats(season=SEASON, timeout=35, headers=NBA_HEADERS)
+        # Short timeout so we don't hit gunicorn worker timeout (30s default on Render)
+        ld = LeagueDashTeamStats(season=SEASON, timeout=6, headers=NBA_HEADERS)
         df = ld.get_data_frames()[0]
     except Exception as e:
         print("[league-avg] LeagueDashTeamStats failed:", e)
@@ -795,19 +795,19 @@ def get_league_defense_last_10():
 
     df = None
     last_error = None
-    for attempt in range(3):
+    # Stay under ~28s total so we don't hit gunicorn default 30s worker timeout on Render
+    for attempt in range(2):
         try:
             time.sleep(NBA_DELAY)
-            # 60s per attempt so total fits under gunicorn --timeout 180
-            lgl = LeagueGameLog(season=SEASON, timeout=60, headers=NBA_HEADERS)
+            lgl = LeagueGameLog(season=SEASON, timeout=22, headers=NBA_HEADERS)
             df = lgl.get_data_frames()[0]
             if df is not None and not df.empty:
                 break
         except Exception as e:
             last_error = e
             print("[league-defense] LeagueGameLog attempt %s failed: %s" % (attempt + 1, e))
-        if attempt < 2:
-            time.sleep(2)
+        if attempt < 1:
+            time.sleep(1)
     if df is None or df.empty:
         err_msg = str(last_error) if last_error else "No data returned"
         print("[league-defense] All attempts failed. Last error:", err_msg)
