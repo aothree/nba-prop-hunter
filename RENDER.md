@@ -2,10 +2,11 @@
 
 ## League data: use the cache
 
-The app serves league OVERS/UNDERS from **`data/league-defense.json`**, which is updated once a day by a GitHub Action. That way the app does **not** call the NBA API from Render (which often blocks or times out).
+The app serves league OVERS/UNDERS from **`data/league-defense.json`**, so it does not call the NBA API from Render (the NBA API blocks cloud IPs).
 
-- **First time:** In GitHub go to **Actions** → **Update league data** → **Run workflow**. When it finishes, `data/league-defense.json` will be in the repo. Deploy (or redeploy) on Render so the service has that file.
-- After that, the workflow runs daily; redeploy on Render whenever you want the latest cache, or leave as-is for daily data.
+**You must create that file from your own computer** (where the NBA API works). In the project directory, with venv activated, run the fetch script (see README “Morning routine”), then `git add data/league-defense.json`, `git commit`, and `git push`.
+
+Then deploy (or redeploy) on Render so the service has the file. Re-run the script and push whenever you want to refresh the data. The GitHub Action (“Update league data”) often fails because the NBA API blocks GitHub; use the local run above as the reliable method.
 
 ## Start Command (optional but recommended)
 

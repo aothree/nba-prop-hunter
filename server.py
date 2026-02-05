@@ -950,6 +950,20 @@ def get_league_defense_last_10():
     return _league_defense_cache
 
 
+@app.route("/api/health")
+def api_health():
+    """Quick check: ok and whether league cache is ready (so the site will be fast)."""
+    league_ready = False
+    if os.path.isfile(LEAGUE_CACHE_FILE):
+        try:
+            with open(LEAGUE_CACHE_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            league_ready = bool(data.get("teams") and len(data.get("teams", [])) >= 10)
+        except Exception:
+            pass
+    return jsonify({"ok": True, "league_cache_ready": league_ready})
+
+
 @app.route("/")
 def index():
     return send_from_directory(os.path.dirname(os.path.abspath(__file__)), "index.html")

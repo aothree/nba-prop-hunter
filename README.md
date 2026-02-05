@@ -54,27 +54,62 @@ Open **http://127.0.0.1:5000** in your browser. Pick a team and click **View def
 
 ---
 
-## League data cache (fast app, works on Render)
+## Where the data lives (fast site)
 
-League OVERS/UNDERS data is **pre-built once a day** by a GitHub Action and committed to `data/league-defense.json`. The app serves from this file, so:
+League OVERS/UNDERS data is stored in the repo at **`data/league-defense.json`**. The app serves from this file, so there are no live NBA API calls at request time — the site stays fast and works on Render. You run the scrape on your PC and push the file; Render uses whatever is in the repo.
 
-- **No NBA API calls at request time** — page loads are fast.
-- **Works on Render** — the NBA API often blocks cloud IPs; with cached data the app doesn’t need to call it.
+### Morning routine (run on your PC)
 
-**First-time setup:** In GitHub go to **Actions** → **Update league data** → **Run workflow**. Wait for it to finish (it fetches from the NBA API and commits `data/league-defense.json`). Then deploy (or redeploy) on Render so the service has the file. After that, the workflow runs daily on a schedule.
+In the project directory, with the venv activated, run the fetch script, then commit and push so the deployed site gets fresh data:
 
-You can run the workflow manually anytime to refresh the cache.
+**Git Bash / macOS / Linux:**
+```bash
+FORCE_LEAGUE_FETCH=1 NBA_LONG_TIMEOUT=1 python scripts/fetch_league_data.py
+git add data/league-defense.json
+git commit -m "chore: update league-defense cache"
+git push
+```
 
-## Deploy on Render (share a link)
+**Windows (PowerShell):**
+```powershell
+$env:FORCE_LEAGUE_FETCH="1"; $env:NBA_LONG_TIMEOUT="1"; python scripts/fetch_league_data.py
+git add data/league-defense.json
+git commit -m "chore: update league-defense cache"
+git push
+```
 
-1. Push this repo to **GitHub** (if you haven’t already).
-2. Run the **Update league data** workflow once (Actions → Update league data → Run workflow) so `data/league-defense.json` exists.
-3. Go to [render.com](https://render.com) and sign up / log in.
-4. **New +** → **Web Service** → connect your GitHub and select this repo.
-5. Set **Start Command** to `gunicorn -b 0.0.0.0:$PORT server:app --timeout 180` (see **[RENDER.md](RENDER.md)**).
-6. Click **Create Web Service**. After deploy you’ll get a URL like `https://nba-prop-hunter.onrender.com`.
+The script takes a few minutes. When it succeeds, `data/league-defense.json` is updated; pushing deploys the new data to Render (Render redeploys on push to your main branch).
 
-**Note:** On the free tier the app sleeps after ~15 minutes of no traffic; the first visit after that may take 30–60 seconds to wake up.
+---
+
+## Test locally (venv)
+
+1. **Fetch data** (from your PC; NBA API often blocks cloud IPs):
+   ```powershell
+   # PowerShell, from project root with venv activated
+   $env:FORCE_LEAGUE_FETCH="1"; $env:NBA_LONG_TIMEOUT="1"; python scripts/fetch_league_data.py
+   ```
+2. **Start the server:**
+   ```powershell
+   python server.py
+   ```
+3. **In the browser:** open **http://127.0.0.1:5000**. Pick a team and open “View defense”.  
+   **Optional:** open **http://127.0.0.1:5000/api/health** — you should see `{"ok": true, "league_cache_ready": true}` when the cache file is present and valid.
+
+---
+
+## Deploy to Render
+
+1. Push the repo to **GitHub** (include `data/league-defense.json` — run the morning routine once so the file exists and is pushed).
+2. Go to [render.com](https://render.com) → **New +** → **Web Service** → connect GitHub and select this repo.
+3. **Build command:** `pip install -r requirements.txt`  
+   **Start command:** `gunicorn -b 0.0.0.0:$PORT server:app --timeout 180`  
+   (Or use the values from **render.yaml**; see **[RENDER.md](RENDER.md)**.)
+4. Click **Create Web Service**. After the first deploy, your site URL (e.g. `https://nba-prop-hunter.onrender.com`) will serve from the cached league data — fast.
+
+**Note:** Free tier services sleep after ~15 minutes of no traffic; the first visit after that may take 30–60 seconds to wake up.
+
+*Optional:* To have the cache update without your PC, you can add a paid proxy and the `NBA_PROXY_URL` secret so the GitHub Action “Update league data” can fetch successfully (see workflow file).
 
 ## API
 

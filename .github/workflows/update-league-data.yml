@@ -30,6 +30,9 @@ jobs:
         env:
           FORCE_LEAGUE_FETCH: "1"
           NBA_LONG_TIMEOUT: "1"
+          # Optional: set repo secret NBA_PROXY_URL (e.g. http://user:pass@proxy:8080) so requests use a proxy and avoid NBA API blocking cloud IPs
+          HTTP_PROXY: ${{ secrets.NBA_PROXY_URL }}
+          HTTPS_PROXY: ${{ secrets.NBA_PROXY_URL }}
         run: python scripts/fetch_league_data.py
 
       - name: Commit and push if changed
