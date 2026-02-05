@@ -855,13 +855,14 @@
 
   async function loadLeagueOverview() {
     var loadingEl = document.getElementById("league-loading");
-    var maxRetries = 3;
-    var retryDelayMs = 4000;
+    var maxRetries = 2;
+    var retryDelayMs = 3000;
+    var fetchTimeoutMs = 40000;
     for (var attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         if (loadingEl && attempt > 1) loadingEl.textContent = "Retrying… (attempt " + attempt + " of " + maxRetries + ")";
         var controller = new AbortController();
-        var timeoutId = setTimeout(function () { controller.abort(); }, 90000);
+        var timeoutId = setTimeout(function () { controller.abort(); }, fetchTimeoutMs);
         var r = await fetch("/api/league-defense-last-10", { signal: controller.signal });
         clearTimeout(timeoutId);
         var data = await r.json();
@@ -873,10 +874,12 @@
         return;
       } catch (e) {
         if (attempt < maxRetries && loadingEl) {
-          loadingEl.textContent = "First load can take a minute. Retrying in a few seconds…";
+          loadingEl.textContent = "Server busy or waking up. Retrying in a few seconds…";
           await new Promise(function (resolve) { setTimeout(resolve, retryDelayMs); });
         } else {
-          if (loadingEl) loadingEl.textContent = "Could not load league data. The app may still be waking up — try refreshing in 30 seconds.";
+          if (loadingEl) {
+            loadingEl.textContent = "Could not load league data. If you're on Render: wait 60s for cold start, then refresh. You must set Start Command to include --timeout 180 (see RENDER.md in the repo).";
+          }
         }
       }
     }
