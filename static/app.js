@@ -670,12 +670,18 @@
     }
     function miniTableHtml(sectionTitle, top3Teams, statKey, col3Header, apiStat) {
       var valKey = statKey === "top_3_scorers" ? "ppg" : statKey === "top_3_rebounders" ? "rpg" : "apg";
-      var last10Key = "last_10_" + valKey;
+      var listKey = statKey === "top_3_scorers" ? "last_10_pts_list" : statKey === "top_3_rebounders" ? "last_10_reb_list" : "last_10_ast_list";
+      var fallbackKey = "last_10_" + valKey;
       function last10Cell(p) {
-        var cached = p[last10Key];
         var pid = p.player_id != null ? String(p.player_id).trim() : "";
-        if (cached != null && cached !== undefined && cached !== "") {
-          return "<td class=\"last-10-cell\">" + escapeHtml(String(cached)) + "</td>";
+        var list = p[listKey];
+        if (Array.isArray(list) && list.length > 0) {
+          var text = list.map(function (x) { return String(x); }).join(", ");
+          return "<td class=\"last-10-cell\">" + escapeHtml(text) + "</td>";
+        }
+        var fallback = p[fallbackKey];
+        if (fallback != null && fallback !== undefined && fallback !== "") {
+          return "<td class=\"last-10-cell\">" + escapeHtml(String(fallback)) + "</td>";
         }
         return "<td class=\"last-10-cell\" data-player-id=\"" + escapeHtml(pid) + "\">—</td>";
       }

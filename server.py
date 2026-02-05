@@ -1002,15 +1002,38 @@ def get_league_defense_last_10():
     for t in result:
         for p in t.get("top_3_scorers") or []:
             pid = str(p.get("player_id", ""))
-            p["last_10_ppg"] = avg_last10(last10_pts.get(pid))
+            lst = last10_pts.get(pid)
+            p["last_10_ppg"] = avg_last10(lst)
+            if lst and isinstance(lst, list):
+                p["last_10_pts_list"] = [int(x) for x in lst if isinstance(x, (int, float))]
         for p in t.get("top_3_rebounders") or []:
             pid = str(p.get("player_id", ""))
-            p["last_10_rpg"] = avg_last10(last10_reb.get(pid))
+            lst = last10_reb.get(pid)
+            p["last_10_rpg"] = avg_last10(lst)
+            if lst and isinstance(lst, list):
+                p["last_10_reb_list"] = [int(x) for x in lst if isinstance(x, (int, float))]
         for p in t.get("top_3_assisters") or []:
             pid = str(p.get("player_id", ""))
-            p["last_10_apg"] = avg_last10(last10_ast.get(pid))
+            lst = last10_ast.get(pid)
+            p["last_10_apg"] = avg_last10(lst)
+            if lst and isinstance(lst, list):
+                p["last_10_ast_list"] = [int(x) for x in lst if isinstance(x, (int, float))]
 
-    _league_defense_cache = {"teams": result, "league_avg": league_avg}
+    # Cache full game logs for displayed players so Players tab "View stats" works from cache on Render
+    player_game_logs = {}
+    for pid in all_pids:
+        try:
+            data = get_player_last_10_full(str(pid))
+            if data and not data.get("error") and data.get("games"):
+                player_game_logs[str(pid)] = data
+        except Exception as e:
+            print("[league-defense] player_game_log for %s failed: %s" % (pid, e))
+
+    _league_defense_cache = {
+        "teams": result,
+        "league_avg": league_avg,
+        "player_game_logs": player_game_logs,
+    }
     _league_defense_cache_time = now
     print("[league-defense] Loaded %s teams" % len(result))
     return _league_defense_cache
@@ -1050,6 +1073,21 @@ def api_players():
 
 @app.route("/api/player/<player_id>/last-10")
 def api_player_last_10(player_id):
+    # Serve from cache when available (so Render never hits NBA API)
+    if os.path.isfile(LEAGUE_CACHE_FILE):
+        try:
+            with open(LEAGUE_CACHE_FILE, encoding="utf-8") as f:
+                cached = json.load(f)
+            logs = cached.get("player_game_logs") or {}
+            if player_id in logs:
+                return jsonify(logs[player_id])
+            # Cache exists but player not in it — don't call NBA API (would timeout on Render)
+            return jsonify({
+                "error": "This player's game log isn't in the cache. Try a player from the Teams to Target tables, or run the fetch script locally and push the updated cache.",
+                "player_id": player_id,
+            }), 503
+        except Exception:
+            pass
     try:
         data = get_player_last_10_full(player_id)
         if data is None:
