@@ -20,6 +20,21 @@
   var playerGamesTableWrap = document.getElementById("player-games-table-wrap");
   var playerDatalist = document.getElementById("player-datalist");
   var playerNameToId = {};
+  var _leagueData = null;
+  var _leagueDataPromise = null;
+
+  function ensureLeagueData() {
+    if (_leagueData && (_leagueData.teams || _leagueData.player_game_logs)) return Promise.resolve(_leagueData);
+    if (_leagueDataPromise) return _leagueDataPromise;
+    _leagueDataPromise = fetch("/api/league-defense-last-10")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        _leagueData = data;
+        return data;
+      })
+      .catch(function () { return null; });
+    return _leagueDataPromise;
+  }
 
   function switchTab(tabName, opts) {
     opts = opts || {};
@@ -36,16 +51,30 @@
       tabPlayers.classList.toggle("active", tabName === "players");
       tabPlayers.hidden = (tabName !== "players");
       if (tabName === "players" && !opts.skipDefaultPlayer) {
-        if (Object.keys(playerNameToId).length === 0) {
-          loadPlayers().then(defaultToAlexSarr);
-        } else {
-          defaultToAlexSarr();
-        }
+        if (playerLoadingEl) { playerLoadingEl.textContent = "Loading…"; playerLoadingEl.classList.remove("hidden"); }
+        if (playerContentEl) playerContentEl.classList.add("hidden");
+        ensureLeagueData().then(function () {
+          if (Object.keys(playerNameToId).length === 0) {
+            loadPlayers().then(defaultToAlexSarr);
+          } else {
+            defaultToAlexSarr();
+          }
+        });
       }
     }
   }
   function defaultToAlexSarr() {
     if (!playerContentEl || !playerContentEl.classList.contains("hidden")) return;
+    if (!playerSearchEl) return;
+    var logs = _leagueData && _leagueData.player_game_logs;
+    if (logs && Object.keys(logs).length > 0) {
+      var firstId = Object.keys(logs)[0];
+      var entry = logs[firstId];
+      var name = (entry && entry.player_name) ? entry.player_name : "Unknown";
+      playerSearchEl.value = name;
+      fetchPlayerStatsById(firstId);
+      return;
+    }
     var name = "Alex Sarr";
     if (playerNameToId[name]) {
       playerSearchEl.value = name;
@@ -882,6 +911,7 @@
         clearTimeout(timeoutId);
         var data = await r.json();
         if (data.teams && data.teams.length > 0) {
+          _leagueData = data;
           renderLeagueCharts(data);
           return;
         }
