@@ -65,7 +65,7 @@ In the project directory, with the venv activated, run the fetch script, then co
 **Git Bash / macOS / Linux:**
 ```bash
 FORCE_LEAGUE_FETCH=1 NBA_LONG_TIMEOUT=1 python scripts/fetch_league_data.py
-git add data/league-defense.json
+git add data/league-defense.json data/players.json
 git commit -m "chore: update league-defense cache"
 git push
 ```
@@ -73,7 +73,7 @@ git push
 **Windows (PowerShell):**
 ```powershell
 $env:FORCE_LEAGUE_FETCH="1"; $env:NBA_LONG_TIMEOUT="1"; python scripts/fetch_league_data.py
-git add data/league-defense.json
+git add data/league-defense.json data/players.json
 git commit -m "chore: update league-defense cache"
 git push
 ```

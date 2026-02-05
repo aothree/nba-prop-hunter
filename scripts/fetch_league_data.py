@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["FORCE_LEAGUE_FETCH"] = "1"
 os.environ["NBA_LONG_TIMEOUT"] = "1"
 
-from server import get_league_defense_last_10, LEAGUE_CACHE_FILE
+from server import get_league_defense_last_10, get_player_list, LEAGUE_CACHE_FILE, PLAYERS_CACHE_FILE
 
 def main():
     print("[fetch] Fetching league defense data...")
@@ -28,6 +28,16 @@ def main():
     with open(LEAGUE_CACHE_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     print("[fetch] Wrote %s teams to %s" % (len(data["teams"]), LEAGUE_CACHE_FILE))
+
+    print("[fetch] Fetching player list for Players tab...")
+    players = get_player_list()
+    if players and len(players) > 100:
+        with open(PLAYERS_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(players, f, indent=2)
+        print("[fetch] Wrote %s players to %s" % (len(players), PLAYERS_CACHE_FILE))
+    else:
+        print("[fetch] Player list empty or small, not writing.")
+
     return 0
 
 if __name__ == "__main__":

@@ -670,6 +670,15 @@
     }
     function miniTableHtml(sectionTitle, top3Teams, statKey, col3Header, apiStat) {
       var valKey = statKey === "top_3_scorers" ? "ppg" : statKey === "top_3_rebounders" ? "rpg" : "apg";
+      var last10Key = "last_10_" + valKey;
+      function last10Cell(p) {
+        var cached = p[last10Key];
+        var pid = p.player_id != null ? String(p.player_id).trim() : "";
+        if (cached != null && cached !== undefined && cached !== "") {
+          return "<td class=\"last-10-cell\">" + escapeHtml(String(cached)) + "</td>";
+        }
+        return "<td class=\"last-10-cell\" data-player-id=\"" + escapeHtml(pid) + "\">—</td>";
+      }
       var rows = top3Teams.map(function (t) {
         var logoUrl = getLogoUrl(t.team_abbreviation);
         var targetCell = '<img src="' + logoUrl + '" alt="' + escapeHtml(t.team_abbreviation) + '" title="' + escapeHtml(t.team_name) + '" class="summary-table-logo" onerror="this.style.display=\'none\'">';
@@ -689,13 +698,13 @@
         var name1Html = pid1 ? "<span class=\"player-name-link\" data-player-id=\"" + escapeHtml(pid1) + "\" data-player-name=\"" + escapeHtml(name1) + "\" title=\"View player stats\">" + initialLastName(first.player_name) + "</span>" : initialLastName(first.player_name);
         var row1 = "<tr><td rowspan=\"" + list.length + "\">" + targetCell + "</td><td rowspan=\"" + list.length + "\">" + oppLogo + "</td>" +
           "<td>" + name1Html + " <span class=\"stat-num\">(" + first[valKey] + ")</span></td>" +
-          "<td class=\"last-10-cell\" data-player-id=\"" + escapeHtml(pid1) + "\">—</td></tr>";
+          last10Cell(first) + "</tr>";
         var rest = list.slice(1).map(function (p) {
           var pid = p.player_id != null ? String(p.player_id).trim() : "";
           var pname = (p.player_name || "").trim();
           var nameHtml = pid ? "<span class=\"player-name-link\" data-player-id=\"" + escapeHtml(pid) + "\" data-player-name=\"" + escapeHtml(pname) + "\" title=\"View player stats\">" + initialLastName(p.player_name) + "</span>" : initialLastName(p.player_name);
           return "<tr><td>" + nameHtml + " <span class=\"stat-num\">(" + p[valKey] + ")</span></td>" +
-            "<td class=\"last-10-cell\" data-player-id=\"" + escapeHtml(pid) + "\">—</td></tr>";
+            last10Cell(p) + "</tr>";
         }).join("");
         return row1 + rest;
       }).join("");

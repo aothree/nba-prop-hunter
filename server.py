@@ -607,11 +607,23 @@ _player_list_cache_time = 0
 
 
 def get_player_list():
-    """Return list of players for the current season: [{ "id": str, "full_name": str }]. Cached 5 min."""
+    """Return list of players for the current season: [{ "id": str, "full_name": str }]. Prefer data/players.json if present and fresh (so Players tab works on Render)."""
     global _player_list_cache, _player_list_cache_time
     now = time.time()
     if _player_list_cache is not None and (now - _player_list_cache_time) < CACHE_SECONDS:
         return _player_list_cache
+    if os.path.isfile(PLAYERS_CACHE_FILE):
+        try:
+            mtime = os.path.getmtime(PLAYERS_CACHE_FILE)
+            if (now - mtime) < LEAGUE_CACHE_MAX_AGE_SECONDS:
+                with open(PLAYERS_CACHE_FILE, encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, list) and len(data) > 100:
+                    _player_list_cache = data
+                    _player_list_cache_time = now
+                    return data
+        except Exception as e:
+            print("[player-list] Cache read failed:", e)
     try:
         time.sleep(NBA_DELAY)
         ld = LeagueDashPlayerStats(season=SEASON, timeout=60, headers=NBA_HEADERS)
@@ -779,6 +791,7 @@ _league_defense_cache_time = 0
 LEAGUE_CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "league-defense.json")
 LEAGUE_CACHE_MAX_AGE_SECONDS = 26 * 3600  # 26 hours — serve from file if present and fresh
 FORCE_LEAGUE_FETCH = os.environ.get("FORCE_LEAGUE_FETCH") == "1"  # Used by scripts/fetch_league_data.py
+PLAYERS_CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "players.json")
 
 
 def get_league_defense_last_10():
@@ -943,6 +956,40 @@ def get_league_defense_last_10():
         t["top_3_scorers"] = data.get("top_3_scorers", [])
         t["top_3_rebounders"] = data.get("top_3_rebounders", [])
         t["top_3_assisters"] = data.get("top_3_assisters", [])
+
+    # Enrich top players with last-10-game averages (so "Last 10 G" column works from cache on Render)
+    all_pids = []
+    seen = set()
+    for t in result:
+        for p in (t.get("top_3_scorers") or []) + (t.get("top_3_rebounders") or []) + (t.get("top_3_assisters") or []):
+            pid = p.get("player_id")
+            if pid is not None and pid not in seen:
+                seen.add(pid)
+                all_pids.append(pid)
+    last10_pts, last10_reb, last10_ast = {}, {}, {}
+    batch_size = 20
+    for i in range(0, len(all_pids), batch_size):
+        batch = all_pids[i : i + batch_size]
+        last10_pts.update(get_players_last_10(batch, "pts"))
+        last10_reb.update(get_players_last_10(batch, "reb"))
+        last10_ast.update(get_players_last_10(batch, "ast"))
+
+    def avg_last10(vals):
+        if not vals or not isinstance(vals, list):
+            return None
+        nums = [x for x in vals if isinstance(x, (int, float))]
+        return round(sum(nums) / len(nums), 1) if nums else None
+
+    for t in result:
+        for p in t.get("top_3_scorers") or []:
+            pid = str(p.get("player_id", ""))
+            p["last_10_ppg"] = avg_last10(last10_pts.get(pid))
+        for p in t.get("top_3_rebounders") or []:
+            pid = str(p.get("player_id", ""))
+            p["last_10_rpg"] = avg_last10(last10_reb.get(pid))
+        for p in t.get("top_3_assisters") or []:
+            pid = str(p.get("player_id", ""))
+            p["last_10_apg"] = avg_last10(last10_ast.get(pid))
 
     _league_defense_cache = {"teams": result, "league_avg": league_avg}
     _league_defense_cache_time = now
