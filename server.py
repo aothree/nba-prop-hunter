@@ -90,8 +90,8 @@ def get_league_averages():
     if _league_avg_cache is not None and (now - _league_avg_cache_time) < CACHE_SECONDS:
         return _league_avg_cache
     try:
-        # 30s timeout; requires gunicorn --timeout 180 on Render (see RENDER.md)
-        ld = LeagueDashTeamStats(season=SEASON, timeout=30, headers=NBA_HEADERS)
+        # Short timeout: on Render the NBA API often doesn't respond; we fail fast and return a friendly error
+        ld = LeagueDashTeamStats(season=SEASON, timeout=15, headers=NBA_HEADERS)
         df = ld.get_data_frames()[0]
     except Exception as e:
         print("[league-avg] LeagueDashTeamStats failed:", e)
@@ -795,11 +795,11 @@ def get_league_defense_last_10():
 
     df = None
     last_error = None
-    # 75s per attempt; requires gunicorn --timeout 180 on Render (see RENDER.md)
+    # Short timeouts so we finish in ~25s and return a friendly error instead of worker timeout
     for attempt in range(2):
         try:
             time.sleep(NBA_DELAY)
-            lgl = LeagueGameLog(season=SEASON, timeout=75, headers=NBA_HEADERS)
+            lgl = LeagueGameLog(season=SEASON, timeout=20, headers=NBA_HEADERS)
             df = lgl.get_data_frames()[0]
             if df is not None and not df.empty:
                 break
@@ -807,12 +807,14 @@ def get_league_defense_last_10():
             last_error = e
             print("[league-defense] LeagueGameLog attempt %s failed: %s" % (attempt + 1, e))
         if attempt < 1:
-            time.sleep(2)
+            time.sleep(1)
     if df is None or df.empty:
         err_msg = str(last_error) if last_error else "No data returned"
         print("[league-defense] All attempts failed. Last error:", err_msg)
         return _league_defense_cache if _league_defense_cache else {
-            "teams": [], "league_avg": league_avg, "error": "NBA API failed: " + err_msg
+            "teams": [],
+            "league_avg": league_avg,
+            "error": "League data unavailable: NBA API did not respond in time. On Render the NBA API often blocks or slows cloud servers. Run the app locally (python server.py, see README) for full data, or try again later."
         }
 
     if df is None or df.empty:
