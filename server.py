@@ -957,15 +957,34 @@ def get_league_defense_last_10():
         t["top_3_rebounders"] = data.get("top_3_rebounders", [])
         t["top_3_assisters"] = data.get("top_3_assisters", [])
 
-    # Enrich top players with last-10-game averages (so "Last 10 G" column works from cache on Render)
+    # Enrich only players shown in OVERS/UNDERS tables (next-opp top 2 per stat) so fetch finishes in minutes
+    def displayed_opponent_abbrs():
+        overs_pts = sorted([t for t in result if (t.get("ppg_vs_league_pct") or 0) > 0], key=lambda x: -(x.get("ppg_vs_league_pct") or 0))[:3]
+        overs_reb = sorted([t for t in result if (t.get("rpg_vs_league_pct") or 0) > 0], key=lambda x: -(x.get("rpg_vs_league_pct") or 0))[:3]
+        overs_ast = sorted([t for t in result if (t.get("apg_vs_league_pct") or 0) > 0], key=lambda x: -(x.get("apg_vs_league_pct") or 0))[:3]
+        unders_pts = sorted([t for t in result if (t.get("ppg_vs_league_pct") or 0) < 0], key=lambda x: (x.get("ppg_vs_league_pct") or 0))[:3]
+        unders_reb = sorted([t for t in result if (t.get("rpg_vs_league_pct") or 0) < 0], key=lambda x: (x.get("rpg_vs_league_pct") or 0))[:3]
+        unders_ast = sorted([t for t in result if (t.get("apg_vs_league_pct") or 0) < 0], key=lambda x: (x.get("apg_vs_league_pct") or 0))[:3]
+        abbrs = set()
+        for t in overs_pts + overs_reb + overs_ast + unders_pts + unders_reb + unders_ast:
+            if t.get("next_opponent_abbr"):
+                abbrs.add((t["next_opponent_abbr"] or "").upper())
+        return abbrs
+
+    opp_abbrs = displayed_opponent_abbrs()
+    abbr_to_team = {(t.get("team_abbreviation") or "").upper(): t for t in result}
     all_pids = []
     seen = set()
-    for t in result:
-        for p in (t.get("top_3_scorers") or []) + (t.get("top_3_rebounders") or []) + (t.get("top_3_assisters") or []):
-            pid = p.get("player_id")
-            if pid is not None and pid not in seen:
-                seen.add(pid)
-                all_pids.append(pid)
+    for abbr in opp_abbrs:
+        t = abbr_to_team.get(abbr)
+        if not t:
+            continue
+        for lst, n in [(t.get("top_3_scorers") or [], 2), (t.get("top_3_rebounders") or [], 2), (t.get("top_3_assisters") or [], 2)]:
+            for p in lst[:n]:
+                pid = p.get("player_id")
+                if pid is not None and pid not in seen:
+                    seen.add(pid)
+                    all_pids.append(pid)
     last10_pts, last10_reb, last10_ast = {}, {}, {}
     batch_size = 20
     for i in range(0, len(all_pids), batch_size):
