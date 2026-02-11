@@ -109,7 +109,19 @@ The script takes a few minutes. When it succeeds, `data/league-defense.json` is 
 
 **Note:** Free tier services sleep after ~15 minutes of no traffic; the first visit after that may take 30–60 seconds to wake up.
 
-*Optional:* To have the cache update without your PC, you can add a paid proxy and the `NBA_PROXY_URL` secret so the GitHub Action “Update league data” can fetch successfully (see workflow file).
+*Optional (automation):* To have the cache update without your PC, add a paid proxy and the `NBA_PROXY_URL` secret so the GitHub Action “Update league data” can fetch successfully (see workflow file).
+
+### Automate the daily fetch (no manual run)
+
+The flow — **1) get fresh data 2) save to repo 3) push to GitHub** — is already in GitHub Actions (workflow **Update league data**). It runs daily at 12:00 UTC and on manual trigger. Steps 2 and 3 work; step 1 fails in the cloud because **the NBA API blocks requests from data-center IPs** (e.g. GitHub's runners).
+
+**Fix: use a proxy.** Route NBA API requests through a proxy so they come from an allowed IP. The workflow already supports this.
+
+1. **Get a proxy** that allows HTTPS and isn't blocked by stats.nba.com: residential proxies (e.g. [Bright Data](https://brightdata.com), [Smartproxy](https://smartproxy.com), [Oxylabs](https://oxylabs.io) — often ~$10–15/mo or a trial) or a small VPS where you run a proxy (e.g. Squid).
+2. **Add it as a GitHub secret:** Repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret** → Name: `NBA_PROXY_URL`, Value: your proxy URL (e.g. `http://user:pass@proxy.example.com:8080`).
+3. **Run the workflow.** The next run of **Update league data** (scheduled or **Actions** → **Update league data** → **Run workflow**) will use the proxy. If it works, the fetch succeeds, the workflow commits and pushes the cache files, and Render gets the new data on deploy/push.
+
+No code changes — once `NBA_PROXY_URL` is set, automation is end-to-end.
 
 ## API
 

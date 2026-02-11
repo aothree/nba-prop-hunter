@@ -134,6 +134,7 @@
       div.textContent = name;
       div.onmousedown = function (e) {
         e.preventDefault();
+        if (dropdownHideTimer) clearTimeout(dropdownHideTimer);
         input.value = name;
         dropdown.hidden = true;
         input.setAttribute("aria-expanded", "false");
@@ -157,6 +158,7 @@
     playerSearchEl.addEventListener("input", showPlayerDropdown);
     playerSearchEl.addEventListener("keydown", function (e) {
       if (e.key === "Escape") hidePlayerDropdown();
+      if (e.key === "Enter") { e.preventDefault(); fetchPlayerStats(); }
     });
     playerSearchEl.addEventListener("blur", function () {
       dropdownHideTimer = setTimeout(hidePlayerDropdown, 150);

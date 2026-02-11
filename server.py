@@ -5,6 +5,7 @@ and top 3 opponent scorers with variance vs season average.
 import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
@@ -579,13 +580,21 @@ def get_players_last_10(player_ids, stat="pts"):
     col = {"pts": "PTS", "reb": "REB", "ast": "AST"}.get(stat.lower(), "PTS")
     out = {}
     for pid in player_ids:
-        try:
-            time.sleep(NBA_DELAY)
-            pgl = PlayerGameLog(player_id=pid, season=SEASON, timeout=30, headers=NBA_HEADERS)
-            df = pgl.get_data_frames()[0]
-        except Exception as e:
-            print("[players-last-10] PlayerGameLog failed for %s: %s" % (pid, e))
-            out[str(pid)] = []
+        pgl_timeout = 60 if NBA_LONG_TIMEOUT else 30
+        for attempt in range(3):
+            try:
+                time.sleep(NBA_DELAY)
+                pgl = PlayerGameLog(player_id=pid, season=SEASON, timeout=pgl_timeout, headers=NBA_HEADERS)
+                df = pgl.get_data_frames()[0]
+                break
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(3)
+                else:
+                    print("[players-last-10] PlayerGameLog failed for %s: %s" % (pid, e))
+                    out[str(pid)] = []
+                    continue
+        else:
             continue
         if df is None or df.empty:
             out[str(pid)] = []
@@ -680,13 +689,22 @@ def get_player_last_10_full(player_id: str):
     player_name = next((p["full_name"] for p in players if p["id"] == player_id), None)
     if not player_name:
         player_name = "Unknown"
-    try:
-        time.sleep(NBA_DELAY)
-        pgl = PlayerGameLog(player_id=pid, season=SEASON, timeout=30, headers=NBA_HEADERS)
-        df = pgl.get_data_frames()[0]
-    except Exception as e:
-        print("[player-last-20-full] PlayerGameLog failed for %s: %s" % (player_id, e))
-        return {"player_id": player_id, "player_name": player_name, "team_abbreviation": None, "summary": {}, "games": [], "error": str(e)}
+    pgl_timeout = 60 if NBA_LONG_TIMEOUT else 30
+    last_err = None
+    for attempt in range(3):
+        try:
+            time.sleep(NBA_DELAY)
+            pgl = PlayerGameLog(player_id=pid, season=SEASON, timeout=pgl_timeout, headers=NBA_HEADERS)
+            df = pgl.get_data_frames()[0]
+            last_err = None
+            break
+        except Exception as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(3)
+    if last_err is not None:
+        print("[player-last-20-full] PlayerGameLog failed for %s: %s" % (player_id, last_err))
+        return {"player_id": player_id, "player_name": player_name, "team_abbreviation": None, "summary": {}, "games": [], "error": str(last_err)}
     if df is None or df.empty:
         return {"player_id": player_id, "player_name": player_name, "team_abbreviation": None, "summary": {}, "games": []}
     df = _normalize_cols(df)
@@ -1019,7 +1037,7 @@ def get_league_defense_last_10():
             if lst and isinstance(lst, list):
                 p["last_10_ast_list"] = [int(x) for x in lst if isinstance(x, (int, float))]
 
-    # Cache full game logs for displayed players so Players tab "View stats" works from cache on Render
+    # Cache full game logs: first displayed players, then all others so Players tab works for any player on Render
     player_game_logs = {}
     for pid in all_pids:
         try:
@@ -1028,6 +1046,37 @@ def get_league_defense_last_10():
                 player_game_logs[str(pid)] = data
         except Exception as e:
             print("[league-defense] player_game_log for %s failed: %s" % (pid, e))
+
+    all_players = get_player_list()
+    to_fetch = [str(p["id"]) for p in (all_players or []) if p.get("id") and str(p.get("id")) not in player_game_logs]
+    if to_fetch:
+        print("[league-defense] Caching game logs for all %s players (2 workers, retries; ~5–10 min)…" % len(to_fetch))
+        done = 0
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_to_pid = {executor.submit(get_player_last_10_full, pid): pid for pid in to_fetch}
+            for future in as_completed(future_to_pid):
+                pid = future_to_pid[future]
+                try:
+                    data = future.result()
+                    if data and not data.get("error") and data.get("games"):
+                        player_game_logs[str(pid)] = data
+                except Exception as e:
+                    print("[league-defense] player_game_log for %s failed: %s" % (pid, e))
+                done += 1
+                if done % 100 == 0:
+                    print("[league-defense] Cached %s / %s players" % (len(player_game_logs), len(to_fetch)))
+        # Retry failed players once, sequentially with longer delay to avoid rate limits
+        failed = [p for p in to_fetch if p not in player_game_logs]
+        if failed:
+            print("[league-defense] Retrying %s failed players (sequential, 5s delay)…" % len(failed))
+            for pid in failed:
+                try:
+                    time.sleep(5)
+                    data = get_player_last_10_full(pid)
+                    if data and not data.get("error") and data.get("games"):
+                        player_game_logs[str(pid)] = data
+                except Exception as e:
+                    print("[league-defense] retry player %s failed: %s" % (pid, e))
 
     _league_defense_cache = {
         "teams": result,
