@@ -493,6 +493,7 @@ def get_next_opponents():
         return {}
     future = future.sort_values("_dt")
     team_list = teams.get_teams()
+    all_team_ids = {t["id"] for t in team_list}
     id_to_abbr = {t["id"]: t["abbreviation"] for t in team_list}
     id_to_name = {t["id"]: t["full_name"] for t in team_list}
     next_opp = {}
@@ -505,7 +506,7 @@ def get_next_opponents():
             next_opp[hid] = {"abbr": id_to_abbr.get(aid, "???"), "name": id_to_name.get(aid, "Unknown")}
         if aid not in next_opp:
             next_opp[aid] = {"abbr": id_to_abbr.get(hid, "???"), "name": id_to_name.get(hid, "Unknown")}
-        if len(next_opp) >= 30:
+        if all_team_ids and all(tid in next_opp for tid in all_team_ids):
             break
     return next_opp
 

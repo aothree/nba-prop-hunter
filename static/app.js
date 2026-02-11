@@ -707,7 +707,10 @@
         var pid = p.player_id != null ? String(p.player_id).trim() : "";
         var list = p[listKey];
         if (Array.isArray(list) && list.length > 0) {
-          var text = list.map(function (x) { return String(x); }).join(", ");
+          var pad = 10;
+          var parts = list.slice(0, pad).map(function (x) { return String(x); });
+          while (parts.length < pad) parts.push("—");
+          var text = parts.join(", ");
           return "<td class=\"last-10-cell\">" + escapeHtml(text) + "</td>";
         }
         var fallback = p[fallbackKey];
@@ -792,7 +795,10 @@
             ids.forEach(function (id) {
               var cell = idToCell[id];
               if (!cell || !data[id]) return;
-              cell.textContent = Array.isArray(data[id]) ? data[id].join(", ") : String(data[id]);
+              var arr = Array.isArray(data[id]) ? data[id] : [data[id]];
+              var parts = arr.slice(0, 10).map(function (x) { return String(x); });
+              while (parts.length < 10) parts.push("—");
+              cell.textContent = parts.join(", ");
             });
           }
         })
